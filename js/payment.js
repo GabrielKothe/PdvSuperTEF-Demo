@@ -13,12 +13,12 @@ async function startPayment() {
   const cliente = localStorage.getItem("supertef_cliente_chave");
 
   if (!token || !cliente) {
-    alert("PDV não configurado. Acesse ⚙️ Configurações.");
+    showWarning("PDV não configurado. Acesse ⚙️ Configurações.");
     return;
   }
 
   if (items <= 0) {
-    alert("Carrinho vazio.");
+    showWarning("Carrinho vazio.");
     return;
   }
 
@@ -44,7 +44,7 @@ async function proceedWithPayment(total, items) {
   try {
     payload = buildPaymentPayload(total);
   } catch(e) {
-    alert(e.message);
+    showError(e.message);
     return;
   }
 
@@ -187,7 +187,7 @@ function stopPolling() {
 // Cancela a solicitação de pagamento (só funciona se status for 1 - aguardando)
 async function cancelarSolicitacaoPagamento() {
   if (!currentPaymentId) {
-    alert("Nenhum pagamento em andamento para cancelar.");
+    showWarning("Nenhum pagamento em andamento para cancelar.");
     return;
   }
 
@@ -202,7 +202,7 @@ async function cancelarSolicitacaoPagamento() {
   // Validar formato do payment_uniqueid
   const pidToCancel = String(currentPaymentId).trim();
   if (!pidToCancel) {
-    alert("Payment uniqueid inválido.");
+    showError("Payment uniqueid inválido.");
     return;
   }
 
@@ -248,14 +248,14 @@ async function cancelarSolicitacaoPagamento() {
       // Status false - mostrar mensagem de erro
       const errorMsg = response.message || "Erro ao cancelar pagamento";
       toastLog(`Erro: ${errorMsg}`);
-      alert(errorMsg);
+      showError(errorMsg);
       btn.disabled = false;
       btn.textContent = originalText;
     }
   } catch(e) {
     const errorMessage = e.message || "Erro desconhecido";
     toastLog(`Erro ao cancelar: ${errorMessage}`);
-    alert(`Erro ao cancelar pagamento: ${errorMessage}`);
+    showError(`Erro ao cancelar pagamento: ${errorMessage}`);
     btn.disabled = false;
     btn.textContent = originalText;
   }

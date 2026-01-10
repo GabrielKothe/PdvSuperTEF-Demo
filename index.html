@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>PDV - SuperTEF (Demo)</title>
+  <title>PDV - SuperTEF (Demonstração)</title>
+  <link rel="icon" type="image/png" href="img/Logo SuperTef.png" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
@@ -12,15 +13,35 @@
     <div class="top">
       <div class="brand">
         <img src="img/Logo SuperTef.png" alt="SuperTEF" class="logo" />
-        <div>
-          <h1>PDV — SuperTEF (Demo)</h1>
-        </div>
       </div>
 
-      <button id="btnConfig" class="config-btn">⚙️ Configurações</button>
+      <div class="brand-title">
+        <h1>PDV — (Demonstração)</h1>
+      </div>
+
+      <div style="display: flex; gap: 8px;">
+        <button id="btnToggleTheme" class="config-btn" title="Alternar tema">🌓</button>
+        <button id="btnToggleLog" class="config-btn">📋 Log</button>
+        <button id="btnConfig" class="config-btn">⚙️ Configurações</button>
+      </div>
     </div>
   </div>
 </header>
+
+<!-- Painel de Log lateral esquerdo -->
+<div id="logPanel" class="log-panel">
+  <div class="log-panel-header">
+    <h3>Log de Requisições</h3>
+    <button id="btnCloseLog" class="log-close-btn">✕</button>
+  </div>
+  <div class="log-panel-toolbar">
+    <button id="btnClearLog" class="log-toolbar-btn">🗑️ Limpar</button>
+    <button id="btnCopyLog" class="log-toolbar-btn">📋 Copiar</button>
+  </div>
+  <div id="logContent" class="log-content">
+    <div class="log-empty">Nenhuma requisição registrada ainda.</div>
+  </div>
+</div>
 
 <main>
   <div class="grid">
@@ -43,69 +64,111 @@
         <small id="cartCount">0 itens</small>
       </div>
 
+      <!-- Tabs Navigation -->
+      <div class="tabs-nav">
+        <button class="tab-btn active" data-tab="cart">
+          <span>🛒</span>
+          <span>Carrinho</span>
+        </button>
+        <button class="tab-btn" data-tab="payment" id="tabPaymentBtn">
+          <span>💳</span>
+          <span>Pagamento</span>
+        </button>
+      </div>
+
       <div class="bd">
-        <div class="field">
-          <label>Forma de pagamento</label>
-          <select id="payMethod">
-            <option value="debit">Débito</option>
-            <option value="credit">Crédito à vista</option>
-            <option value="credit_inst">Crédito parcelado</option>
-            <option value="pix">PIX</option>
-            <option value="voucher">Voucher</option>
-          </select>
+        <!-- Aba Carrinho -->
+        <div class="tab-content active" id="tabCart">
+          <div class="cart-table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Qtd</th>
+                  <th>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody id="cartRows"></tbody>
+            </table>
+          </div>
+
+          <div class="totals">
+            <div class="line"><span>Subtotal</span><span id="subTotal">R$ 0,00</span></div>
+            <div class="line grand"><span>Total</span><span id="grandTotal">R$ 0,00</span></div>
+          </div>
+
+          <div class="actions">
+            <button class="pay" id="btnChoosePayment">
+            
+              <span>Prosseguir</span>
+            </button>
+            <button class="clear" id="btnClear">
+             
+              <span>Limpar carrinho</span>
+            </button>
+          </div>
         </div>
 
-        <div class="field" id="instWrap" style="display:none;">
-          <label>Parcelas (installment_count)</label>
-          <input id="installments" type="number" min="2" max="18" step="1" value="2" />
-          <div class="hint">Usado somente para “Crédito parcelado”.</div>
-        </div>
+        <!-- Aba Pagamento -->
+        <div class="tab-content" id="tabPayment">
+          <div class="field">
+            <label>Forma de pagamento</label>
+            <div class="payment-methods" id="payMethod">
+              <button type="button" class="payment-method-btn" data-method="debit">
+                <span class="payment-icon">💳</span>
+                <span>Débito</span>
+              </button>
+              <button type="button" class="payment-method-btn" data-method="credit">
+                <span class="payment-icon">💳</span>
+                <span>Crédito à vista</span>
+              </button>
+              <button type="button" class="payment-method-btn" data-method="credit_inst">
+                <span class="payment-icon">💳</span>
+                <span>Crédito parcelado</span>
+              </button>
+              <button type="button" class="payment-method-btn" data-method="pix">
+                <span class="payment-icon pix-icon">
+                  <img src="img/Pix.png" alt="PIX" />
+                </span>
+                <span>PIX</span>
+              </button>
+              <button type="button" class="payment-method-btn" data-method="voucher">
+                <span class="payment-icon">🎫</span>
+                <span>Voucher</span>
+              </button>
+            </div>
+          </div>
 
-        <div class="field">
-          <label>Descrição do pagamento</label>
-          <input id="desc" type="text" value="Pagamento PDV" />
-        </div>
+          <div class="field" id="instWrap" style="display:none;">
+            <label>Parcelas</label>
+            <input id="installments" type="number" min="2" max="18" step="1" value="2" />
+            <div class="hint">Usado somente para "Crédito parcelado".</div>
+          </div>
 
-        <div class="field">
-          <label>Order ID (seu número do pedido)</label>
-          <input id="orderId" type="text" value="PDV-001" />
-        </div>
+          <div class="field">
+            <label>Descrição do pagamento</label>
+            <input id="desc" type="text" value="Pagamento PDV" />
+          </div>
 
-        <div class="hint" style="margin: 6px 0 12px;">
-         
-        </div>
+          <div class="field">
+            <label>Order ID (seu número do pedido)</label>
+            <input id="orderId" type="text" value="PDV-001" />
+          </div>
 
-        <div class="cart-table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Qtd</th>
-                <th>Subtotal</th>
-              </tr>
-            </thead>
-            <tbody id="cartRows"></tbody>
-          </table>
-        </div>
+          <div class="totals" style="margin: 20px 0;">
+            <div class="line grand"><span>Total a pagar</span><span id="grandTotalPayment">R$ 0,00</span></div>
+          </div>
 
-        <div class="totals">
-          <div class="line"><span>Subtotal</span><span id="subTotal">R$ 0,00</span></div>
-          <div class="line grand"><span>Total</span><span id="grandTotal">R$ 0,00</span></div>
-        </div>
-
-        <div class="actions">
-          <button class="pay" id="btnPay">
-            <span>💳</span>
-            <span>Pagamento</span>
-          </button>
-          <button class="clear" id="btnClear">
-            <span>🗑️</span>
-            <span>Limpar carrinho</span>
-          </button>
-        </div>
-
-        <div class="hint" style="margin-top:10px;">
-      
+          <div class="actions">
+            <button class="pay" id="btnPay">
+              <span>💳 </span>
+              <span>Realizar pagamento</span>
+            </button>
+            <button class="clear" id="btnBackToCart">
+              <span>← </span>
+              <span>Voltar ao carrinho</span>
+            </button>
+          </div>
         </div>
       </div>
     </aside>
@@ -207,7 +270,12 @@
     <div class="bd">
       <div class="field">
         <label>Bearer Token</label>
-        <input id="cfgToken" type="password" placeholder="Bearer eyJhbGciOi..." />
+        <div class="token-input-wrapper">
+          <input id="cfgToken" type="password" placeholder="Bearer eyJhbGciOi..." />
+          <button type="button" class="token-toggle-btn" id="btnToggleToken" title="Mostrar/Ocultar token">
+            <span class="token-eye-icon">👁️</span>
+          </button>
+        </div>
       </div>
 
       <div class="field">
@@ -239,9 +307,26 @@
         <button class="pay" id="btnSaveConfig">Salvar configuração</button>
         <button class="clear" id="btnCancelConfig">Cancelar</button>
       </div>
+
+      <div class="config-danger-section">
+        <div class="field">
+          <label style="font-weight: 600; color: var(--text);">Limpar dados sensíveis</label>
+          <div class="hint" style="margin-bottom: 12px;">
+            Remove todos os dados sensíveis salvos no navegador (Token, Cliente Chave, POS ID, etc.). 
+            Esta ação não pode ser desfeita.
+          </div>
+          <button class="clear-danger" id="btnClearSensitiveData">
+            <span>🗑️</span>
+            <span>Limpar dados sensíveis</span>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
+
+<!-- Container de Notificações Toast -->
+<div id="toastContainer" class="toast-container"></div>
 
   <!-- Scripts JavaScript (ordem de carregamento importante) -->
   <script src="js/utils.js"></script>

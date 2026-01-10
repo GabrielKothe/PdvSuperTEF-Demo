@@ -11,16 +11,55 @@ async function apiFetch(path, opts = {}) {
     "Content-Type": "application/json",
     ...(opts.headers || {})
   };
-  const res = await fetch(API_BASE + path, { ...opts, headers });
-  const text = await res.text();
-  let json = null;
-  try { json = text ? JSON.parse(text) : null; } catch { /* ignore */ }
-
-  if (!res.ok) {
-    const msg = (json && (json.message || json.error)) ? (json.message || json.error) : text;
-    throw new Error(`HTTP ${res.status} - ${msg || "Erro na requisição"}`);
+  
+  const fullUrl = API_BASE + path;
+  const method = (opts.method || 'GET').toUpperCase();
+  
+  // Extrair dados da requisição (body)
+  let requestData = null;
+  if (opts.body) {
+    try {
+      requestData = typeof opts.body === 'string' ? JSON.parse(opts.body) : opts.body;
+    } catch {
+      requestData = opts.body;
+    }
   }
-  return json;
+  
+  let response = null;
+  let status = null;
+  let error = null;
+  
+  try {
+    const res = await fetch(fullUrl, { ...opts, headers });
+    status = res.status;
+    const text = await res.text();
+    let json = null;
+    try { json = text ? JSON.parse(text) : null; } catch { /* ignore */ }
+
+    if (!res.ok) {
+      const msg = (json && (json.message || json.error)) ? (json.message || json.error) : text;
+      error = new Error(`HTTP ${res.status} - ${msg || "Erro na requisição"}`);
+      
+      // Registrar log com erro
+      addRequestLog(method, fullUrl, requestData, json || text, status, error);
+      
+      throw error;
+    }
+    
+    response = json;
+    
+    // Registrar log com sucesso
+    addRequestLog(method, fullUrl, requestData, response, status, null);
+    
+    return json;
+  } catch (e) {
+    // Se ainda não foi registrado (erro de rede, etc)
+    if (!error) {
+      error = e;
+      addRequestLog(method, fullUrl, requestData, null, status || 0, error);
+    }
+    throw e;
+  }
 }
 
 // Lista POS disponíveis para o cliente (busca todas as páginas)
@@ -88,7 +127,7 @@ function buildPaymentPayload(amount, posId = null) {
   const cliente_chave = localStorage.getItem("supertef_cliente_chave");
   const order_id = $("orderId").value.trim() || ("PDV-" + Date.now());
   const description = $("desc").value.trim() || "Pagamento PDV";
-  const method = $("payMethod").value;
+  const method = getSelectedPaymentMethod();
   
   // Determinar qual POS_ID usar
   let pos_id_to_use;

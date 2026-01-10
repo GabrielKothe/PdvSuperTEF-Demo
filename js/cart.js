@@ -3,7 +3,55 @@
 // =========================
 
 // Carrinho em memória
-const cart = new Map(); // sku -> { sku, name, price, qty }
+const cart = new Map(); // sku -> { sku, name, price, qty, image }
+
+// Salva carrinho no cache
+function saveCartToCache() {
+  try {
+    const cartArray = Array.from(cart.entries()).map(([sku, item]) => ({
+      sku,
+      name: item.name,
+      price: item.price,
+      qty: item.qty,
+      image: item.image || null
+    }));
+    localStorage.setItem("pdv_cart_cache", JSON.stringify(cartArray));
+  } catch (e) {
+    console.error("Erro ao salvar carrinho no cache:", e);
+  }
+}
+
+// Carrega carrinho do cache
+function loadCartFromCache() {
+  try {
+    const cached = localStorage.getItem("pdv_cart_cache");
+    if (cached) {
+      const cartArray = JSON.parse(cached);
+      cart.clear();
+      cartArray.forEach(item => {
+        cart.set(item.sku, {
+          sku: item.sku,
+          name: item.name,
+          price: item.price,
+          qty: item.qty,
+          image: item.image || null
+        });
+      });
+    }
+  } catch (e) {
+    console.error("Erro ao carregar carrinho do cache:", e);
+    cart.clear();
+  }
+}
+
+// Limpa o cache do carrinho
+function clearCartCache() {
+  try {
+    localStorage.removeItem("pdv_cart_cache");
+  } catch (e) {
+    console.error("Erro ao limpar cache do carrinho:", e);
+  }
+}
 
 // Adiciona produto ao carrinho
 function addToCart(sku) {
@@ -13,6 +61,15 @@ function addToCart(sku) {
   if (cur) cur.qty += 1;
   else cart.set(sku, { ...p, qty: 1 });
   renderCart();
+  saveCartToCache(); // Salvar no cache
+  
+  // Se estiver na aba de pagamento, voltar para a aba do carrinho
+  if (typeof switchTab === 'function') {
+    const tabPayment = document.getElementById("tabPayment");
+    if (tabPayment && tabPayment.classList.contains("active")) {
+      switchTab('cart');
+    }
+  }
 }
 
 // Incrementa quantidade de um item
@@ -21,6 +78,7 @@ function incQty(sku) {
   if (!it) return;
   it.qty += 1;
   renderCart();
+  saveCartToCache(); // Salvar no cache
 }
 
 // Decrementa quantidade de um item
@@ -30,12 +88,18 @@ function decQty(sku) {
   it.qty -= 1;
   if (it.qty <= 0) cart.delete(sku);
   renderCart();
+  saveCartToCache(); // Salvar no cache
 }
 
 // Limpa o carrinho
 function clearCart() {
   cart.clear();
   renderCart();
+  clearCartCache(); // Limpar cache quando limpar carrinho
+  // Voltar para a aba do carrinho se existir a função switchTab
+  if (typeof switchTab === 'function') {
+    switchTab('cart');
+  }
 }
 
 // Calcula totais do carrinho
@@ -72,9 +136,10 @@ function renderCart() {
     `;
     
     const qtyTd = document.createElement("td");
+    const decreaseBtnClass = it.qty === 1 ? 'qty-single' : '';
     qtyTd.innerHTML = `
       <div class="qty">
-        <button title="Diminuir">−</button>
+        <button class="${decreaseBtnClass}" title="Diminuir">−</button>
         <span style="min-width:22px; text-align:center;">${it.qty}</span>
         <button title="Aumentar">+</button>
       </div>
@@ -96,5 +161,22 @@ function renderCart() {
   const { total, items } = cartTotals();
   $("subTotal").textContent = fmtBRL(total);
   $("grandTotal").textContent = fmtBRL(total);
+  if ($("grandTotalPayment")) {
+    $("grandTotalPayment").textContent = fmtBRL(total);
+  }
   $("cartCount").textContent = `${items} itens`;
+  
+  // Desabilitar botão "Escolher forma de pagamento" se carrinho vazio
+  const btnChoosePayment = document.getElementById("btnChoosePayment");
+  if (btnChoosePayment) {
+    if (items === 0) {
+      btnChoosePayment.disabled = true;
+      btnChoosePayment.style.opacity = "0.5";
+      btnChoosePayment.style.cursor = "not-allowed";
+    } else {
+      btnChoosePayment.disabled = false;
+      btnChoosePayment.style.opacity = "1";
+      btnChoosePayment.style.cursor = "pointer";
+    }
+  }
 }
