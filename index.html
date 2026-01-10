@@ -8,13 +8,18 @@
 </head>
 <body>
 <header>
-   <div class="top">
-  <div class="brand">
-    <h1>PDV — SuperTEF</h1>
-  </div>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand">
+        <img src="img/Logo SuperTef.png" alt="SuperTEF" class="logo" />
+        <div>
+          <h1>PDV — SuperTEF (Demo)</h1>
+        </div>
+      </div>
 
-  <button id="btnConfig" class="config-btn">⚙️ Configurações</button>
-</div>
+      <button id="btnConfig" class="config-btn">⚙️ Configurações</button>
+    </div>
+  </div>
 </header>
 
 <main>
@@ -70,7 +75,7 @@
          
         </div>
 
-        <div style="overflow:auto; border:1px solid var(--line); border-radius:12px;">
+        <div class="cart-table-wrapper">
           <table>
             <thead>
               <tr>
@@ -128,6 +133,13 @@
       <div class="success-hint">Venda finalizada com sucesso</div>
     </div>
 
+    <!-- CANCELADO -->
+    <div id="canceledArea" class="status-area canceled" style="display:none;">
+      <div class="canceled-icon">✕</div>
+      <div class="canceled-text">PAGAMENTO CANCELADO</div>
+      <div class="canceled-hint">Transação cancelada</div>
+    </div>
+
     <!-- INFO -->
     <div class="info-box">
       <div><strong>Pagamento:</strong> <span id="pid">—</span></div>
@@ -158,6 +170,26 @@
   </div>
 </div>
 
+<!-- Modal de Seleção de POS -->
+<div class="modal" id="posSelectModal">
+  <div class="box" style="max-width:600px;">
+    <div class="hd">
+      <strong id="posSelectTitle" style="font-size:20px;">Selecione uma POS</strong>
+      <button id="btnClosePosSelect" class="config-btn">✕</button>
+    </div>
+
+    <div class="bd">
+      <div id="posList" class="pos-list-container">
+        <!-- Lista de POS será inserida aqui -->
+      </div>
+
+      <div class="actions" style="margin-top: 16px;">
+        <button class="clear" id="btnCancelPosSelect">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal de Configuração -->
 <div class="modal" id="configModal">
   <div class="box" style="max-width:520px;">
@@ -175,6 +207,21 @@
       <div class="field">
         <label>Cliente Chave</label>
         <input id="cfgCliente" type="text" placeholder="ex: 68e6f645a5e3" />
+      </div>
+
+      <div class="field">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" id="cfgListarPos" style="width: auto; cursor: pointer;" />
+          <span>Listar POS</span>
+        </label>
+        <div class="hint" style="margin-top: 4px;">
+          Se habilitado, lista POS disponíveis para escolher. Se desabilitado, usa o POS_ID abaixo.
+        </div>
+      </div>
+
+      <div class="field">
+        <label>POS_ID (usado apenas se "Listar POS" estiver desabilitado)</label>
+        <input id="cfgPosId" type="number" placeholder="ex: 1272" />
       </div>
 
       <div class="hint">
