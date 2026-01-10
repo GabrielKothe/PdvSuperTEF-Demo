@@ -4,6 +4,10 @@
 
 let pollTimer = null;
 let currentPaymentId = null;
+let pollingTimeout = null; // Timeout para cancelar automaticamente após 1 minuto
+let countdownTimer = null; // Timer para atualizar o contador regressivo
+let countdownStartTime = null; // Timestamp de quando o contador começou
+const POLLING_TIMEOUT_MS = 60000; // 1 minuto em milissegundos
 
 // Inicia o processo de pagamento
 async function startPayment() {
@@ -56,6 +60,8 @@ async function proceedWithPayment(total, items) {
   
   // Parar polling anterior se existir
   stopPolling();
+  clearPollingTimeout();
+  stopCountdown();
   
   openModal();
 
@@ -125,6 +131,17 @@ async function proceedWithPayment(total, items) {
 
   // Polling GET /pagamentos/by-uniqueid/{id}
   if (pollTimer) clearInterval(pollTimer);
+  if (pollingTimeout) clearTimeout(pollingTimeout);
+  stopCountdown();
+  
+  // Iniciar timeout de 1 minuto para cancelar automaticamente
+  pollingTimeout = setTimeout(() => {
+    handlePollingTimeout();
+  }, POLLING_TIMEOUT_MS);
+  
+  // Iniciar contador regressivo
+  startCountdown();
+  
   pollTimer = setInterval(() => pollPayment(currentPaymentId), POLL_MS);
   // Poll imediato
   await pollPayment(currentPaymentId);
@@ -154,6 +171,8 @@ async function pollPayment(pid) {
       document.getElementById("btnCancelTef").style.display = "none";
 
       stopPolling();
+      clearPollingTimeout();
+      stopCountdown();
       clearCart();
     } else if (st === 5) {
       toastLog("Pagamento cancelado (status 5).");
@@ -169,6 +188,8 @@ async function pollPayment(pid) {
       document.getElementById("btnCancelTef").style.display = "none";
 
       stopPolling();
+      clearPollingTimeout();
+      stopCountdown();
     }
   } catch(e) {
     toastLog("Erro no polling: " + e.message);
@@ -184,6 +205,159 @@ function stopPolling() {
   }
 }
 
+// Limpa o timeout de polling
+function clearPollingTimeout() {
+  if (pollingTimeout) {
+    clearTimeout(pollingTimeout);
+    pollingTimeout = null;
+  }
+}
+
+// Inicia o contador regressivo de timeout
+function startCountdown() {
+  // Limpar contador anterior se existir
+  stopCountdown();
+  
+  // Mostrar elemento do contador
+  const counterElement = document.getElementById("timeoutCounter");
+  const timeElement = document.getElementById("timeoutTime");
+  
+  if (!counterElement || !timeElement) return;
+  
+  counterElement.style.display = "flex";
+  
+  // Definir tempo inicial
+  countdownStartTime = Date.now();
+  const totalSeconds = Math.floor(POLLING_TIMEOUT_MS / 1000);
+  updateCountdownDisplay(totalSeconds, timeElement);
+  
+  // Atualizar contador a cada segundo
+  countdownTimer = setInterval(() => {
+    const elapsed = Date.now() - countdownStartTime;
+    const remaining = Math.max(0, POLLING_TIMEOUT_MS - elapsed);
+    const remainingSeconds = Math.floor(remaining / 1000);
+    
+    updateCountdownDisplay(remainingSeconds, timeElement);
+    
+    // Se o tempo acabou, o handlePollingTimeout vai ser chamado
+    if (remainingSeconds <= 0) {
+      stopCountdown();
+    }
+  }, 1000);
+}
+
+// Atualiza a exibição do contador
+function updateCountdownDisplay(seconds, timeElement) {
+  if (!timeElement) return;
+  
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  const formattedTime = `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  
+  timeElement.textContent = formattedTime;
+  
+  // Adicionar classe de aviso quando restam 10 segundos ou menos
+  if (seconds <= 10) {
+    timeElement.classList.add("warning");
+  } else {
+    timeElement.classList.remove("warning");
+  }
+}
+
+// Para o contador regressivo
+function stopCountdown() {
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+    countdownTimer = null;
+  }
+  
+  countdownStartTime = null;
+  
+  // Esconder elemento do contador
+  const counterElement = document.getElementById("timeoutCounter");
+  if (counterElement) {
+    counterElement.style.display = "none";
+  }
+  
+  // Remover classe de aviso
+  const timeElement = document.getElementById("timeoutTime");
+  if (timeElement) {
+    timeElement.classList.remove("warning");
+  }
+}
+
+// Trata o timeout de 1 minuto - cancela o pagamento automaticamente
+async function handlePollingTimeout() {
+  toastLog("Timeout: 1 minuto de polling atingido sem resposta final. Cancelando pagamento automaticamente...");
+  
+  // Parar polling e contador
+  stopPolling();
+  clearPollingTimeout();
+  stopCountdown();
+  
+  // Atualizar contador para 00:00
+  const timeElement = document.getElementById("timeoutTime");
+  if (timeElement) {
+    timeElement.textContent = "00:00";
+    timeElement.classList.add("warning");
+  }
+  
+  // Verificar se ainda há um pagamento em andamento
+  if (!currentPaymentId) {
+    // Se não houver payment_uniqueid, apenas fechar
+    $("statusArea").style.display = "none";
+    $("successArea").style.display = "none";
+    $("canceledArea").style.display = "block";
+    $("modalTitle").textContent = "Tempo esgotado";
+    $("modalSub").textContent = "Não foi possível obter resposta do pagamento";
+    $("btnCloseOk").style.display = "inline-block";
+    $("btnCancelTef").style.display = "none";
+    setBadge(5);
+    showError("Tempo de espera esgotado. O pagamento não retornou status final após 1 minuto.");
+    return;
+  }
+  
+  // Tentar cancelar o pagamento na API
+  const currentStatus = Number($("pstatus").textContent || "0");
+  
+  // Se o status ainda for 1 (aguardando), tentar cancelar via API
+  if (currentStatus === 1) {
+    try {
+      toastLog(`Tentando cancelar pagamento automaticamente (payment_uniqueid: ${currentPaymentId})...`);
+      const response = await cancelarPagamento(currentPaymentId);
+      
+      toastLog(`Resposta do cancelamento automático: ${JSON.stringify(response)}`);
+      
+      if (response && (response.status === true || response.status === "true")) {
+        toastLog(`Pagamento cancelado automaticamente: ${response.message || "Cancelado com sucesso"}`);
+      } else {
+        toastLog(`Não foi possível cancelar via API: ${response?.message || "Erro desconhecido"}`);
+      }
+    } catch(e) {
+      toastLog(`Erro ao cancelar automaticamente: ${e.message}`);
+      // Continuar mesmo se houver erro na API - vamos mostrar como cancelado na UI
+    }
+  }
+  
+  // Atualizar UI para mostrar como cancelado (timeout)
+  const st = 5; // Status cancelado
+  $("pstatus").textContent = String(st);
+  setBadge(st);
+  updateCancelButton();
+  
+  $("statusArea").style.display = "none";
+  $("successArea").style.display = "none";
+  $("canceledArea").style.display = "block";
+  
+  $("modalTitle").textContent = "Tempo esgotado";
+  $("modalSub").textContent = "Pagamento cancelado automaticamente após 1 minuto sem resposta";
+  
+  $("btnCloseOk").style.display = "inline-block";
+  $("btnCancelTef").style.display = "none";
+  
+  showError("Tempo de espera esgotado. O pagamento foi cancelado automaticamente após 1 minuto sem resposta final.");
+}
+
 // Cancela a solicitação de pagamento (só funciona se status for 1 - aguardando)
 async function cancelarSolicitacaoPagamento() {
   if (!currentPaymentId) {
@@ -195,6 +369,8 @@ async function cancelarSolicitacaoPagamento() {
   const currentStatus = Number($("pstatus").textContent || "0");
   if (currentStatus !== 1) {
     stopPolling();
+    clearPollingTimeout();
+    stopCountdown();
     closeModal();
     return;
   }
@@ -244,6 +420,8 @@ async function cancelarSolicitacaoPagamento() {
       $("btnCancelTef").style.display = "none";
 
       stopPolling();
+      clearPollingTimeout();
+      stopCountdown();
     } else {
       // Status false - mostrar mensagem de erro
       const errorMsg = response.message || "Erro ao cancelar pagamento";

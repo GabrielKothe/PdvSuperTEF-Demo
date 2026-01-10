@@ -100,12 +100,14 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       // Caso contrário, apenas fechar o modal
       stopPolling();
+      if (typeof stopCountdown === 'function') stopCountdown();
       closeModal();
     }
   });
 
   $("btnCloseOk").addEventListener("click", () => {
     stopPolling();
+    if (typeof stopCountdown === 'function') stopCountdown();
     closeModal();
   });
 

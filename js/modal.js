@@ -43,6 +43,18 @@ function resetModalState() {
   $("pid").textContent = "—";
   $("pstatus").textContent = "1"; // Status inicial é 1 (aguardando)
   setBadge(1);
+  
+  // Esconder contador regressivo
+  const counterElement = document.getElementById("timeoutCounter");
+  if (counterElement) {
+    counterElement.style.display = "none";
+  }
+  const timeElement = document.getElementById("timeoutTime");
+  if (timeElement) {
+    timeElement.textContent = "01:00";
+    timeElement.classList.remove("warning");
+  }
+  
   // updateCancelButton será chamado após definir currentPaymentId no proceedWithPayment
 }
 
@@ -227,9 +239,16 @@ async function openPosSelectModal(callback) {
   posSelectionCallback = callback;
   selectedPosId = null;
 
+  // Mostrar modal de "Buscando POS..." imediatamente
+  const searchingModal = document.getElementById("posSearchingModal");
+  searchingModal.classList.add("open");
+
   try {
-    // Buscar lista de POS antes de abrir o modal
+    // Buscar lista de POS
     const posAtivas = await listarPOS();
+    
+    // Fechar modal de busca
+    searchingModal.classList.remove("open");
     
     if (!posAtivas || posAtivas.length === 0) {
       // Se não houver POS, mostrar modal com mensagem de erro
@@ -266,15 +285,10 @@ async function openPosSelectModal(callback) {
     const posList = document.getElementById("posList");
     const posSelectTitle = document.getElementById("posSelectTitle");
     
-    // Resetar título inicial
-    posSelectTitle.textContent = "Selecione uma POS";
-    posList.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--muted);">Carregando POS...</div>';
-    
-    document.getElementById("posSelectModal").classList.add("open");
-
     // Atualizar título com o total
     posSelectTitle.textContent = `Selecione uma POS - Total: ${posAtivas.length}`;
-
+    
+    // Renderizar lista de POS
     posList.innerHTML = "";
     posAtivas.forEach(pos => {
       const posItem = document.createElement("div");
@@ -288,11 +302,17 @@ async function openPosSelectModal(callback) {
       posItem.addEventListener("click", () => selectPOS(pos.id, pos.nome));
       posList.appendChild(posItem);
     });
+    
+    // Abrir modal de seleção
+    document.getElementById("posSelectModal").classList.add("open");
   } catch(e) {
+    // Fechar modal de busca em caso de erro
+    searchingModal.classList.remove("open");
+    
     // Em caso de erro, abrir modal com mensagem de erro
     const posList = document.getElementById("posList");
     const posSelectTitle = document.getElementById("posSelectTitle");
-    posSelectTitle.textContent = "Selecione uma POS - Total: 0";
+    posSelectTitle.textContent = "Erro ao buscar POS";
     posList.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--bad);">Erro: ${e.message}</div>`;
     document.getElementById("posSelectModal").classList.add("open");
   }

@@ -194,6 +194,10 @@
     <div id="statusArea" class="status-area waiting">
       <div class="status-text">Aguardando aprovação na maquininha</div>
       <div class="status-hint">Finalize o pagamento no TEF</div>
+      <div id="timeoutCounter" class="timeout-counter" style="display:none;">
+        <span class="timeout-label">Tempo restante:</span>
+        <span id="timeoutTime" class="timeout-time">01:00</span>
+      </div>
     </div>
 
     <!-- SUCESSO -->
@@ -237,6 +241,17 @@
     </div>
 
   </div>
+  </div>
+</div>
+
+<!-- Modal de Buscando POS (Loading) -->
+<div class="modal" id="posSearchingModal">
+  <div class="box">
+    <div class="bd">
+      <div class="pos-loading-icon">⏳</div>
+      <div class="pos-loading-title">Buscando POS...</div>
+      <div class="pos-loading-subtitle">Aguarde enquanto consultamos os terminais disponíveis</div>
+    </div>
   </div>
 </div>
 
