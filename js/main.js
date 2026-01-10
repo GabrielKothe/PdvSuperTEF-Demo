@@ -137,6 +137,9 @@ document.addEventListener("DOMContentLoaded", () => {
   $("btnClearLog").addEventListener("click", clearRequestLogs);
   $("btnCopyLog").addEventListener("click", copyRequestLogs);
 
+  // Tela Cheia (Fullscreen)
+  setupFullscreen();
+
   // Verificar se há configuração salva, se não, abrir modal automaticamente
   checkAndOpenConfig();
   
@@ -244,5 +247,91 @@ function switchTab(tabName) {
     if ($("grandTotalPayment")) {
       $("grandTotalPayment").textContent = fmtBRL(total);
     }
+  }
+}
+
+// =========================
+// GERENCIAMENTO DE TELA CHEIA (FULLSCREEN)
+// =========================
+
+function setupFullscreen() {
+  const btnToggleFullscreen = document.getElementById("btnToggleFullscreen");
+  if (!btnToggleFullscreen) return;
+
+  // Atualizar estado inicial do botão
+  updateFullscreenButton();
+
+  // Event listener para o botão
+  btnToggleFullscreen.addEventListener("click", toggleFullscreen);
+
+  // Escutar mudanças de estado de fullscreen (quando usuário sai com ESC, etc)
+  document.addEventListener("fullscreenchange", updateFullscreenButton);
+  document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
+  document.addEventListener("mozfullscreenchange", updateFullscreenButton);
+  document.addEventListener("MSFullscreenChange", updateFullscreenButton);
+}
+
+// Verifica se está em modo fullscreen
+function isFullscreen() {
+  return !!(
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.mozFullScreenElement ||
+    document.msFullscreenElement
+  );
+}
+
+// Atualiza o texto e ícone do botão baseado no estado
+function updateFullscreenButton() {
+  const btn = document.getElementById("btnToggleFullscreen");
+  if (!btn) return;
+
+  const isFull = isFullscreen();
+  
+  if (isFull) {
+    btn.innerHTML = "🔲 Sair da Tela Cheia";
+    btn.title = "Sair da tela cheia (ou pressione ESC)";
+  } else {
+    btn.innerHTML = "⛶ Tela Cheia";
+    btn.title = "Entrar em tela cheia";
+  }
+}
+
+// Alterna entre fullscreen e modo normal
+async function toggleFullscreen() {
+  try {
+    if (isFullscreen()) {
+      // Sair do fullscreen
+      if (document.exitFullscreen) {
+        await document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        await document.webkitExitFullscreen();
+      } else if (document.mozCancelFullScreen) {
+        await document.mozCancelFullScreen();
+      } else if (document.msExitFullscreen) {
+        await document.msExitFullscreen();
+      }
+    } else {
+      // Entrar em fullscreen
+      const element = document.documentElement;
+      
+      if (element.requestFullscreen) {
+        await element.requestFullscreen();
+      } else if (element.webkitRequestFullscreen) {
+        await element.webkitRequestFullscreen();
+      } else if (element.mozRequestFullScreen) {
+        await element.mozRequestFullScreen();
+      } else if (element.msRequestFullscreen) {
+        await element.msRequestFullscreen();
+      } else {
+        showWarning("Tela cheia não é suportada neste navegador.");
+        return;
+      }
+    }
+    
+    // O botão será atualizado automaticamente pelos event listeners
+  } catch (error) {
+    console.error("Erro ao alternar tela cheia:", error);
+    showError("Erro ao alternar tela cheia. Tente novamente.");
   }
 }
