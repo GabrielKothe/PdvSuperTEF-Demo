@@ -2,7 +2,11 @@
 // CONFIGURAÇÕES GLOBAIS
 // =========================
 const API_BASE = "https://api.supertef.com.br/api"; // URL produção
-const POLL_MS = 1000; // recomendação 4s (ajuste conforme necessário)
+// Intervalo da consulta "detalhar pagamento" (GET /pagamentos/by-uniqueid/{id}).
+// A API SuperTEF limita a frequência: consultar a cada 4 segundos.
+const POLL_MS = 4000;
+// Se a API responder 429 (Too Many Requests), o intervalo dobra até este limite.
+const POLL_MAX_BACKOFF_MS = 16000;
 
 // Produtos fixos (exemplo PDV mercado)
 // Adicione a URL da imagem de cada produto no campo 'image'

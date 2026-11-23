@@ -2,163 +2,240 @@
 // INICIALIZAÇÃO E EVENTOS
 // =========================
 
-// Handler para mudança de forma de pagamento
-function onMethodChange() {
-  const method = getSelectedPaymentMethod();
-  $("instWrap").style.display = (method === "credit_inst") ? "block" : "none";
-}
-
-// Obtém o método de pagamento selecionado (compatibilidade com código existente)
+// Forma de pagamento
 function getSelectedPaymentMethod() {
-  const activeBtn = document.querySelector('.payment-method-btn.active');
-  return activeBtn ? activeBtn.getAttribute('data-method') : 'debit';
+  const activeBtn = document.querySelector(".payment-method-btn.active");
+  return activeBtn ? activeBtn.getAttribute("data-method") : "debit";
 }
 
-// Define o método de pagamento selecionado
 function setSelectedPaymentMethod(method) {
-  const buttons = document.querySelectorAll('.payment-method-btn');
-  buttons.forEach(btn => {
-    if (btn.getAttribute('data-method') === method) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
-    }
+  document.querySelectorAll(".payment-method-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.getAttribute("data-method") === method);
   });
   onMethodChange();
 }
 
+function onMethodChange() {
+  $("instWrap").style.display = getSelectedPaymentMethod() === "credit_inst" ? "flex" : "none";
+  updateInstallmentInfo();
+}
+
+// Parcelas
+function clampInstallments(v) {
+  return Math.min(18, Math.max(2, parseInt(v, 10) || 2));
+}
+function changeInstallments(delta) {
+  $("installments").value = clampInstallments(Number($("installments").value) + delta);
+  updateInstallmentInfo();
+}
+function updateInstallmentInfo() {
+  const info = $("instInfo");
+  if (!info) return;
+  const n = clampInstallments($("installments").value);
+  const { total } = cartTotals();
+  info.textContent = total > 0 ? `${n}x de ${fmtBRL(total / n)}` : "";
+}
+
+// Gera um novo número de pedido
+function newOrderId() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  $("orderId").value = `PDV-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+}
+
 // =========================
-// GERENCIAMENTO DE TEMA
+// TEMA
 // =========================
 
-// Carrega o tema salvo ou usa dark como padrão
 function loadTheme() {
   const savedTheme = localStorage.getItem("theme") || "dark";
   document.documentElement.setAttribute("data-theme", savedTheme);
   updateThemeButton(savedTheme);
 }
 
-// Alterna entre dark e light mode
 function toggleTheme() {
-  const currentTheme = document.documentElement.getAttribute("data-theme") || "dark";
-  const newTheme = currentTheme === "dark" ? "light" : "dark";
-  document.documentElement.setAttribute("data-theme", newTheme);
-  localStorage.setItem("theme", newTheme);
-  updateThemeButton(newTheme);
+  const current = document.documentElement.getAttribute("data-theme") || "dark";
+  const next = current === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  localStorage.setItem("theme", next);
+  updateThemeButton(next);
 }
 
-// Atualiza o ícone do botão de tema
 function updateThemeButton(theme) {
-  const btn = $("btnToggleTheme");
-  if (btn) {
-    btn.textContent = theme === "dark" ? "🌓" : "☀️";
-  }
+  const use = document.querySelector("#btnToggleTheme use");
+  if (use) use.setAttribute("href", theme === "dark" ? "#i-sun" : "#i-moon");
+  $("btnToggleTheme").title = theme === "dark" ? "Tema claro" : "Tema escuro";
 }
 
-// Event Listeners
+// =========================
+// RELÓGIO
+// =========================
+
+function startClock() {
+  const tick = () => {
+    $("clock").textContent = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  };
+  tick();
+  setInterval(tick, 15000);
+}
+
+// =========================
+// EVENTOS
+// =========================
+
 document.addEventListener("DOMContentLoaded", () => {
-  // Carregar tema salvo
   loadTheme();
-  
-  // Toggle de tema
+  startClock();
+  newOrderId();
+
   $("btnToggleTheme").addEventListener("click", toggleTheme);
-  
-  // Pagamento
   $("btnPay").addEventListener("click", startPayment);
-  $("btnClear").addEventListener("click", clearCart);
-  
-  // Navegação de abas
-  setupTabs();
-  
-  // Criar getter/setter para compatibilidade com código existente
-  const payMethodContainer = $("payMethod");
-  Object.defineProperty(payMethodContainer, 'value', {
-    get: function() { return getSelectedPaymentMethod(); },
-    set: function(val) { setSelectedPaymentMethod(val); },
-    enumerable: true,
-    configurable: true
-  });
-  
-  // Botões de forma de pagamento
-  const paymentButtons = document.querySelectorAll('.payment-method-btn');
-  paymentButtons.forEach(btn => {
-    btn.addEventListener('click', function() {
-      setSelectedPaymentMethod(this.getAttribute('data-method'));
-      // Disparar evento change para compatibilidade
-      const event = new Event('change');
-      payMethodContainer.dispatchEvent(event);
-    });
+  $("btnClear").addEventListener("click", () => {
+    if (cartTotals().items === 0) return;
+    if (confirm("Limpar todos os itens do carrinho?")) clearCart();
   });
 
-  // Modal de pagamento - Botão Fechar/Cancelar
-  $("btnCancelTef").addEventListener("click", async () => {
-    const status = Number($("pstatus").textContent || "0");
-    
-    // Se status for 1 (aguardando) e tiver payment_uniqueid, cancelar solicitação
-    if (status === 1 && currentPaymentId) {
-      await cancelarSolicitacaoPagamento();
-    } else {
-      // Caso contrário, apenas fechar o modal
-      stopPolling();
-      if (typeof stopCountdown === 'function') stopCountdown();
-      closeModal();
+  setupTabs();
+
+  // Formas de pagamento
+  document.querySelectorAll(".payment-method-btn").forEach(btn => {
+    btn.addEventListener("click", () => setSelectedPaymentMethod(btn.getAttribute("data-method")));
+  });
+
+  // Parcelas
+  $("instDec").addEventListener("click", () => changeInstallments(-1));
+  $("instInc").addEventListener("click", () => changeInstallments(1));
+  $("installments").addEventListener("input", updateInstallmentInfo);
+  $("installments").addEventListener("change", () => {
+    $("installments").value = clampInstallments($("installments").value);
+    updateInstallmentInfo();
+  });
+
+  // Busca de produtos
+  const search = $("productSearch");
+  search.addEventListener("input", () => {
+    productFilter = search.value;
+    renderProducts();
+  });
+  search.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") {
+      const first = filteredProducts()[0];
+      if (first) {
+        addToCart(first.sku);
+        search.select();
+      }
+    } else if (ev.key === "Escape") {
+      search.value = "";
+      productFilter = "";
+      renderProducts();
+      search.blur();
     }
   });
 
+  // Modal de pagamento
+  $("btnCancelTef").addEventListener("click", cancelarSolicitacaoPagamento);
   $("btnCloseOk").addEventListener("click", () => {
-    stopPolling();
-    if (typeof stopCountdown === 'function') stopCountdown();
+    stopAllPaymentTimers();
     closeModal();
   });
 
   // Configurações
   $("btnConfig").addEventListener("click", openConfig);
+  $("connStatus").addEventListener("click", openConfig);
   $("btnSaveConfig").addEventListener("click", saveConfig);
   $("btnCancelConfig").addEventListener("click", closeConfig);
   $("btnCloseConfig").addEventListener("click", closeConfig);
-  
-  // Botão para limpar dados sensíveis
-  const btnClearSensitiveData = document.getElementById("btnClearSensitiveData");
-  if (btnClearSensitiveData) {
-    btnClearSensitiveData.addEventListener("click", clearSensitiveData);
-  }
-  
-  // Checkbox Listar POS
-  const cfgListarPos = document.getElementById("cfgListarPos");
-  if (cfgListarPos) {
-    cfgListarPos.addEventListener("change", updatePosIdField);
-  }
+  $("btnClearSensitiveData").addEventListener("click", clearSensitiveData);
+  $("cfgListarPos").addEventListener("change", updatePosIdField);
+  setupTokenToggle();
+  ["cfgToken", "cfgCliente", "cfgPosId"].forEach(id =>
+    $(id).addEventListener("keydown", (ev) => { if (ev.key === "Enter") saveConfig(); }));
 
-  // Modal de Seleção de POS
+  // Seleção de POS
   $("btnClosePosSelect").addEventListener("click", closePosSelectModal);
   $("btnCancelPosSelect").addEventListener("click", closePosSelectModal);
 
-  // Painel de Log
+  // Painel de log
   $("btnToggleLog").addEventListener("click", toggleLogPanel);
   $("btnCloseLog").addEventListener("click", toggleLogPanel);
   $("btnClearLog").addEventListener("click", clearRequestLogs);
   $("btnCopyLog").addEventListener("click", copyRequestLogs);
 
-  // Tela Cheia (Fullscreen)
-  setupFullscreen();
+  // Barra mobile
+  $("mbGo").addEventListener("click", () => $("orderPanel").scrollIntoView({ behavior: "smooth" }));
 
-  // Verificar se há configuração salva, se não, abrir modal automaticamente
-  checkAndOpenConfig();
-  
-  // Inicialização
+  // Fechar modais clicando fora (exceto o de pagamento em andamento)
+  ["configModal", "posSelectModal"].forEach(id => {
+    $(id).addEventListener("mousedown", (ev) => {
+      if (ev.target.id === id) (id === "configModal" ? closeConfig : closePosSelectModal)();
+    });
+  });
+
+  setupFullscreen();
+  setupKeyboard();
+
   renderProducts();
-  loadCartFromCache(); // Carregar carrinho do cache
+  loadCartFromCache();
   renderCart();
-  
-  // Selecionar primeiro método de pagamento (débito) por padrão
-  if (paymentButtons.length > 0) {
-    setSelectedPaymentMethod('debit');
-  }
-  
-  // Adicionar listener de change para compatibilidade
-  payMethodContainer.addEventListener('change', onMethodChange);
-  onMethodChange();
+  setSelectedPaymentMethod("debit");
+  updateConnStatus();
+  checkAndOpenConfig();
 });
+
+// =========================
+// ATALHOS DE TECLADO
+// =========================
+
+function anyModalOpen() {
+  return document.querySelector(".modal.open") !== null;
+}
+
+function setupKeyboard() {
+  document.addEventListener("keydown", (ev) => {
+    const payModalOpen = $("modal").classList.contains("open");
+
+    if (ev.key === "Escape") {
+      if ($("configModal").classList.contains("open")) return closeConfig();
+      if ($("posSelectModal").classList.contains("open")) return closePosSelectModal();
+      if ($("logPanel").classList.contains("open")) return toggleLogPanel();
+      if (payModalOpen) {
+        // Só fecha com Esc quando o pagamento já terminou
+        if ($("btnCloseOk").style.display !== "none") $("btnCloseOk").click();
+        return;
+      }
+      if ($("tabPayment").classList.contains("active")) return switchTab("cart");
+      return;
+    }
+
+    if (anyModalOpen()) return;
+
+    if (ev.key === "F2") {
+      ev.preventDefault();
+      $("productSearch").focus();
+      $("productSearch").select();
+      return;
+    }
+    if (ev.key === "F4") {
+      ev.preventDefault();
+      switchTab("payment");
+      return;
+    }
+    if (ev.key === "F9") {
+      ev.preventDefault();
+      if (!$("tabPayment").classList.contains("active")) switchTab("payment");
+      else startPayment();
+      return;
+    }
+
+    // 1–5 escolhem a forma de pagamento (somente na etapa de pagamento e fora de campos de texto)
+    const tag = (ev.target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea") return;
+    if ($("tabPayment").classList.contains("active") && /^[1-5]$/.test(ev.key)) {
+      const btn = document.querySelectorAll(".payment-method-btn")[Number(ev.key) - 1];
+      if (btn) btn.click();
+    }
+  });
+}
 
 // =========================
 // VERIFICAÇÃO DE CONFIGURAÇÃO
@@ -167,173 +244,77 @@ document.addEventListener("DOMContentLoaded", () => {
 function checkAndOpenConfig() {
   const token = localStorage.getItem("supertef_token");
   const cliente = localStorage.getItem("supertef_cliente_chave");
-  
-  // Se não tiver token ou cliente, abrir modal de configuração
-  if (!token || !cliente) {
-    // Pequeno delay para melhor UX
-    setTimeout(() => {
-      openConfig();
-    }, 300);
-  }
+  if (!token || !cliente) setTimeout(openConfig, 300);
 }
 
 // =========================
-// SISTEMA DE ABAS
+// ETAPAS (Pedido / Pagamento)
 // =========================
 
 function setupTabs() {
-  const tabButtons = document.querySelectorAll('.tab-btn');
-  const tabContents = document.querySelectorAll('.tab-content');
-  
-  // Navegação por clique nas abas
-  tabButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const targetTab = btn.getAttribute('data-tab');
-      switchTab(targetTab);
-    });
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => switchTab(btn.getAttribute("data-tab")));
   });
-  
-  // Botão "Escolher forma de pagamento"
-  const btnChoosePayment = document.getElementById("btnChoosePayment");
-  if (btnChoosePayment) {
-    btnChoosePayment.addEventListener('click', () => {
-      const { items } = cartTotals();
-      if (items > 0) {
-        switchTab('payment');
-      }
-    });
-  }
-  
-  // Botão "Voltar ao carrinho"
-  const btnBackToCart = document.getElementById("btnBackToCart");
-  if (btnBackToCart) {
-    btnBackToCart.addEventListener('click', () => {
-      switchTab('cart');
-    });
-  }
+  $("btnChoosePayment").addEventListener("click", () => switchTab("payment"));
+  $("btnBackToCart").addEventListener("click", () => switchTab("cart"));
 }
 
 function switchTab(tabName) {
-  // Se tentar ir para pagamento e carrinho estiver vazio, não permitir
-  if (tabName === 'payment') {
-    const { items } = cartTotals();
-    if (items === 0) {
-      showToast('Adicione produtos ao carrinho antes de escolher a forma de pagamento', 'warning');
-      return;
-    }
+  if (tabName === "payment" && cartTotals().items === 0) {
+    showToast("Adicione produtos ao carrinho antes de ir para o pagamento.", "warning");
+    return;
   }
-  
-  // Atualizar botões das abas
-  const tabButtons = document.querySelectorAll('.tab-btn');
-  tabButtons.forEach(btn => {
-    if (btn.getAttribute('data-tab') === tabName) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
-    }
+
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.getAttribute("data-tab") === tabName);
   });
-  
-  // Atualizar conteúdo das abas
-  const tabContents = document.querySelectorAll('.tab-content');
-  tabContents.forEach(content => {
-    if (content.id === `tab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`) {
-      content.classList.add('active');
-    } else {
-      content.classList.remove('active');
-    }
+  const targetId = `tab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`;
+  document.querySelectorAll(".tab-content").forEach(content => {
+    content.classList.toggle("active", content.id === targetId);
   });
-  
-  // Se mudar para a aba de pagamento, atualizar o total
-  if (tabName === 'payment') {
-    const { total } = cartTotals();
-    if ($("grandTotalPayment")) {
-      $("grandTotalPayment").textContent = fmtBRL(total);
-    }
+
+  if (tabName === "payment") {
+    $("grandTotalPayment").textContent = fmtBRL(cartTotals().total);
+    updateInstallmentInfo();
+    setTimeout(() => $("btnPay").focus(), 30);
   }
 }
 
 // =========================
-// GERENCIAMENTO DE TELA CHEIA (FULLSCREEN)
+// TELA CHEIA
 // =========================
 
 function setupFullscreen() {
-  const btnToggleFullscreen = document.getElementById("btnToggleFullscreen");
-  if (!btnToggleFullscreen) return;
-
-  // Atualizar estado inicial do botão
   updateFullscreenButton();
-
-  // Event listener para o botão
-  btnToggleFullscreen.addEventListener("click", toggleFullscreen);
-
-  // Escutar mudanças de estado de fullscreen (quando usuário sai com ESC, etc)
-  document.addEventListener("fullscreenchange", updateFullscreenButton);
-  document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
-  document.addEventListener("mozfullscreenchange", updateFullscreenButton);
-  document.addEventListener("MSFullscreenChange", updateFullscreenButton);
+  $("btnToggleFullscreen").addEventListener("click", toggleFullscreen);
+  ["fullscreenchange", "webkitfullscreenchange"].forEach(evt =>
+    document.addEventListener(evt, updateFullscreenButton));
 }
 
-// Verifica se está em modo fullscreen
 function isFullscreen() {
-  return !!(
-    document.fullscreenElement ||
-    document.webkitFullscreenElement ||
-    document.mozFullScreenElement ||
-    document.msFullscreenElement
-  );
+  return !!(document.fullscreenElement || document.webkitFullscreenElement);
 }
 
-// Atualiza o texto e ícone do botão baseado no estado
 function updateFullscreenButton() {
-  const btn = document.getElementById("btnToggleFullscreen");
-  if (!btn) return;
-
-  const isFull = isFullscreen();
-  
-  if (isFull) {
-    btn.innerHTML = "🔲 Sair da Tela Cheia";
-    btn.title = "Sair da tela cheia (ou pressione ESC)";
-  } else {
-    btn.innerHTML = "⛶ Tela Cheia";
-    btn.title = "Entrar em tela cheia";
-  }
+  const btn = $("btnToggleFullscreen");
+  const full = isFullscreen();
+  btn.querySelector("use").setAttribute("href", full ? "#i-shrink" : "#i-expand");
+  btn.title = full ? "Sair da tela cheia" : "Tela cheia";
 }
 
-// Alterna entre fullscreen e modo normal
 async function toggleFullscreen() {
   try {
     if (isFullscreen()) {
-      // Sair do fullscreen
-      if (document.exitFullscreen) {
-        await document.exitFullscreen();
-      } else if (document.webkitExitFullscreen) {
-        await document.webkitExitFullscreen();
-      } else if (document.mozCancelFullScreen) {
-        await document.mozCancelFullScreen();
-      } else if (document.msExitFullscreen) {
-        await document.msExitFullscreen();
-      }
+      if (document.exitFullscreen) await document.exitFullscreen();
+      else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
     } else {
-      // Entrar em fullscreen
-      const element = document.documentElement;
-      
-      if (element.requestFullscreen) {
-        await element.requestFullscreen();
-      } else if (element.webkitRequestFullscreen) {
-        await element.webkitRequestFullscreen();
-      } else if (element.mozRequestFullScreen) {
-        await element.mozRequestFullScreen();
-      } else if (element.msRequestFullscreen) {
-        await element.msRequestFullscreen();
-      } else {
-        showWarning("Tela cheia não é suportada neste navegador.");
-        return;
-      }
+      const el = document.documentElement;
+      if (el.requestFullscreen) await el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
+      else showWarning("Tela cheia não é suportada neste navegador.");
     }
-    
-    // O botão será atualizado automaticamente pelos event listeners
   } catch (error) {
     console.error("Erro ao alternar tela cheia:", error);
-    showError("Erro ao alternar tela cheia. Tente novamente.");
+    showError("Erro ao alternar tela cheia.");
   }
 }

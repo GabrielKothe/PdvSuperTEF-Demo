@@ -5,62 +5,46 @@
 // Atualiza o badge de status
 function setBadge(status) {
   const b = $("statusBadge");
-  b.classList.remove("ok","warn","bad");
-
+  b.classList.remove("ok", "warn", "bad");
   if (status === 4) {
-    b.textContent = "Pago";
+    b.textContent = "Aprovado";
     b.classList.add("ok");
   } else if (status === 5) {
     b.textContent = "Cancelado";
     b.classList.add("bad");
   } else {
-    b.textContent = "Solicitado/Aguardando";
+    b.textContent = "Aguardando";
     b.classList.add("warn");
   }
 }
 
-// Abre o modal de pagamento
-function openModal() {
-  $("modal").classList.add("open");
-}
-
-// Fecha o modal de pagamento
-function closeModal() {
-  $("modal").classList.remove("open");
-}
+function openModal() { $("modal").classList.add("open"); }
+function closeModal() { $("modal").classList.remove("open"); }
 
 // Reseta o estado do modal para um novo pagamento
 function resetModalState() {
-  $("statusArea").style.display = "block";  // Mostrar área de aguardando
-  $("successArea").style.display = "none";  // Esconder área de sucesso
-  $("canceledArea").style.display = "none"; // Esconder área de cancelado
+  $("statusArea").style.display = "flex";
+  $("successArea").style.display = "none";
+  $("canceledArea").style.display = "none";
   $("log").textContent = "";
   $("btnCloseOk").style.display = "none";
-  $("btnCancelTef").style.display = "inline-block";
+  $("btnCancelTef").style.display = "inline-flex";
   $("btnCancelTef").disabled = false;
-  $("modalTitle").textContent = "Aguardando pagamento TEF";
-  $("modalSub").textContent = "Total: R$ 0,00 — Itens: 0";
+  $("btnCancelTef").textContent = "Cancelar cobrança";
   $("pid").textContent = "—";
-  $("pstatus").textContent = "1"; // Status inicial é 1 (aguardando)
-  setBadge(1);
-  
-  // Esconder contador regressivo
-  const counterElement = document.getElementById("timeoutCounter");
-  if (counterElement) {
-    counterElement.style.display = "none";
-  }
-  const timeElement = document.getElementById("timeoutTime");
-  if (timeElement) {
-    timeElement.textContent = "01:00";
-    timeElement.classList.remove("warning");
-  }
-  
-  // updateCancelButton será chamado após definir currentPaymentId no proceedWithPayment
+  $("pid").title = "";
+  if (typeof setStatus === "function") setStatus(1);
+  else setBadge(1);
+
+  $("timeoutCounter").style.display = "none";
+  $("timeoutTime").textContent = "01:00";
+  $("timeoutTime").classList.remove("warning");
+  $("timeoutBar").style.width = "100%";
+  $("timeoutBar").classList.remove("warning");
 }
 
-// Adiciona linha ao log do modal
+// Adiciona linha ao log técnico do modal
 function toastLog(line) {
-  // log pequeno no modal (se aberto), senão no console
   const log = $("log");
   const ts = new Date().toLocaleTimeString("pt-BR");
   const txt = `[${ts}] ${line}\n`;
@@ -76,155 +60,106 @@ function toastLog(line) {
 // MODAL DE CONFIGURAÇÃO
 // =========================
 
-function openConfig() {
-  document.getElementById("cfgToken").value =
-    localStorage.getItem("supertef_token") || "";
-
-  document.getElementById("cfgCliente").value =
-    localStorage.getItem("supertef_cliente_chave") || "";
-
+function isConfigured() {
+  const token = localStorage.getItem("supertef_token");
+  const cliente = localStorage.getItem("supertef_cliente_chave");
   const listarPos = localStorage.getItem("supertef_listar_pos") === "true";
-  document.getElementById("cfgListarPos").checked = listarPos;
-
-  document.getElementById("cfgPosId").value =
-    localStorage.getItem("supertef_pos_id") || "";
-
-  // Habilitar/desabilitar campo POS_ID baseado no checkbox
-  updatePosIdField();
-  
-  // Configurar botão de mostrar/ocultar token
-  setupTokenToggle();
-  
-  document.getElementById("configModal").classList.add("open");
+  const posId = localStorage.getItem("supertef_pos_id");
+  return !!(token && cliente && (listarPos || posId));
 }
 
-// Configura o botão de mostrar/ocultar token
+// Atualiza o indicador de configuração no topo
+function updateConnStatus() {
+  const chip = $("connStatus");
+  if (!chip) return;
+  const ok = isConfigured();
+  chip.classList.toggle("ok", ok);
+  const listarPos = localStorage.getItem("supertef_listar_pos") === "true";
+  const posId = localStorage.getItem("supertef_pos_id");
+  chip.querySelector(".conn-text").textContent = ok
+    ? (listarPos ? "Conectado · POS por venda" : `Conectado · POS ${posId}`)
+    : "Não configurado";
+}
+
+function openConfig() {
+  $("cfgToken").value = localStorage.getItem("supertef_token") || "";
+  $("cfgCliente").value = localStorage.getItem("supertef_cliente_chave") || "";
+  $("cfgListarPos").checked = localStorage.getItem("supertef_listar_pos") === "true";
+  $("cfgPosId").value = localStorage.getItem("supertef_pos_id") || "";
+  setTokenVisible(false);
+  updatePosIdField();
+  $("configModal").classList.add("open");
+  setTimeout(() => ($("cfgToken").value ? $("btnSaveConfig") : $("cfgToken")).focus(), 50);
+}
+
+function setTokenVisible(visible) {
+  $("cfgToken").type = visible ? "text" : "password";
+  const use = document.querySelector("#btnToggleToken use");
+  if (use) use.setAttribute("href", visible ? "#i-eye-off" : "#i-eye");
+}
+
 function setupTokenToggle() {
-  const tokenInput = document.getElementById("cfgToken");
-  const toggleBtn = document.getElementById("btnToggleToken");
-  
-  if (!tokenInput || !toggleBtn) return;
-  
-  // Remover listeners anteriores
-  const newToggleBtn = toggleBtn.cloneNode(true);
-  toggleBtn.parentNode.replaceChild(newToggleBtn, toggleBtn);
-  
-  newToggleBtn.addEventListener("click", () => {
-    const isPassword = tokenInput.type === "password";
-    tokenInput.type = isPassword ? "text" : "password";
-    
-    const eyeIcon = newToggleBtn.querySelector(".token-eye-icon");
-    if (eyeIcon) {
-      eyeIcon.textContent = isPassword ? "🙈" : "👁️";
-    }
+  $("btnToggleToken").addEventListener("click", () => {
+    setTokenVisible($("cfgToken").type === "password");
   });
 }
 
 function closeConfig() {
-  document.getElementById("configModal").classList.remove("open");
+  $("configModal").classList.remove("open");
 }
 
 function updatePosIdField() {
-  const listarPos = document.getElementById("cfgListarPos").checked;
-  const posIdField = document.getElementById("cfgPosId");
-  posIdField.disabled = listarPos;
-  if (listarPos) {
-    posIdField.style.opacity = "0.5";
-    posIdField.style.cursor = "not-allowed";
-  } else {
-    posIdField.style.opacity = "1";
-    posIdField.style.cursor = "text";
-  }
+  $("cfgPosId").disabled = $("cfgListarPos").checked;
 }
 
 function saveConfig() {
-  const token = document.getElementById("cfgToken").value.trim();
-  const cliente = document.getElementById("cfgCliente").value.trim();
-
+  const token = $("cfgToken").value.trim();
+  const cliente = $("cfgCliente").value.trim();
   if (!token || !cliente) {
-    showWarning("Informe o token e a chave.");
+    showWarning("Informe o token e a cliente chave.");
     return;
   }
 
-  const listarPos = document.getElementById("cfgListarPos").checked;
-  const posId = document.getElementById("cfgPosId").value.trim();
-
+  const listarPos = $("cfgListarPos").checked;
+  const posId = $("cfgPosId").value.trim();
   if (!listarPos && !posId) {
-    showWarning("Informe o POS_ID ou habilite 'Listar POS'.");
+    showWarning("Informe o POS_ID ou habilite “Listar POS”.");
     return;
   }
 
   localStorage.setItem("supertef_token", token);
   localStorage.setItem("supertef_cliente_chave", cliente);
   localStorage.setItem("supertef_listar_pos", listarPos ? "true" : "false");
-  
-  if (!listarPos && posId) {
-    localStorage.setItem("supertef_pos_id", posId);
-  } else {
-    localStorage.removeItem("supertef_pos_id");
-  }
+  if (!listarPos && posId) localStorage.setItem("supertef_pos_id", posId);
+  else localStorage.removeItem("supertef_pos_id");
 
+  updateConnStatus();
   showSuccess("Configuração salva com sucesso.");
   closeConfig();
 }
 
 // Limpa todos os dados sensíveis do navegador
 function clearSensitiveData() {
-  // Pedir confirmação ao usuário com mensagem clara
-  const message = "⚠️ Tem certeza que deseja limpar todos os dados sensíveis?\n\n" +
-    "Isso irá remover permanentemente:\n" +
-    "• Bearer Token\n" +
-    "• Cliente Chave\n" +
-    "• POS ID\n" +
-    "• POS Selecionada\n" +
-    "• Configuração de Listar POS\n\n" +
-    "⚠️ Esta ação NÃO pode ser desfeita!\n\n" +
-    "Deseja continuar?";
-  
-  if (!confirm(message)) {
-    return;
-  }
+  const message = "Tem certeza que deseja limpar todos os dados sensíveis?\n\n" +
+    "Serão removidos: Bearer Token, Cliente Chave, POS ID, POS selecionada e configuração de Listar POS.\n\n" +
+    "Esta ação não pode ser desfeita.";
+  if (!confirm(message)) return;
 
   try {
-    // Remover todos os dados sensíveis do localStorage
-    localStorage.removeItem("supertef_token");
-    localStorage.removeItem("supertef_cliente_chave");
-    localStorage.removeItem("supertef_pos_id");
-    localStorage.removeItem("supertef_listar_pos");
-    localStorage.removeItem("supertef_pos_selected_id");
-    localStorage.removeItem("supertef_pos_selected_name");
+    ["supertef_token", "supertef_cliente_chave", "supertef_pos_id", "supertef_listar_pos",
+     "supertef_pos_selected_id", "supertef_pos_selected_name"].forEach(k => localStorage.removeItem(k));
 
-    // Limpar campos do formulário
-    const tokenInput = document.getElementById("cfgToken");
-    const clienteInput = document.getElementById("cfgCliente");
-    const posIdInput = document.getElementById("cfgPosId");
-    const listarPosCheckbox = document.getElementById("cfgListarPos");
-    
-    if (tokenInput) tokenInput.value = "";
-    if (clienteInput) clienteInput.value = "";
-    if (posIdInput) posIdInput.value = "";
-    if (listarPosCheckbox) {
-      listarPosCheckbox.checked = false;
-      updatePosIdField();
-    }
-
-    // Mostrar mensagem de sucesso
-    showSuccess("✅ Dados sensíveis removidos com sucesso do navegador.");
-
-    // Resetar tipo do input de token para password caso esteja em text
-    if (tokenInput && tokenInput.type === "text") {
-      tokenInput.type = "password";
-      const toggleBtn = document.getElementById("btnToggleToken");
-      if (toggleBtn) {
-        const eyeIcon = toggleBtn.querySelector(".token-eye-icon");
-        if (eyeIcon) {
-          eyeIcon.textContent = "👁️";
-        }
-      }
-    }
+    $("cfgToken").value = "";
+    $("cfgCliente").value = "";
+    $("cfgPosId").value = "";
+    $("cfgListarPos").checked = false;
+    updatePosIdField();
+    setTokenVisible(false);
+    updateConnStatus();
+    showSuccess("Dados sensíveis removidos deste navegador.");
   } catch (e) {
     console.error("Erro ao limpar dados sensíveis:", e);
-    showError("❌ Erro ao limpar dados sensíveis. Tente novamente.");
+    showError("Erro ao limpar dados sensíveis. Tente novamente.");
   }
 }
 
@@ -239,119 +174,86 @@ async function openPosSelectModal(callback) {
   posSelectionCallback = callback;
   selectedPosId = null;
 
-  // Mostrar modal de "Buscando POS..." imediatamente
-  const searchingModal = document.getElementById("posSearchingModal");
+  const searchingModal = $("posSearchingModal");
+  const posList = $("posList");
+  const posSelectTitle = $("posSelectTitle");
   searchingModal.classList.add("open");
 
   try {
-    // Buscar lista de POS
     const posAtivas = await listarPOS();
-    
-    // Fechar modal de busca
     searchingModal.classList.remove("open");
-    
+
     if (!posAtivas || posAtivas.length === 0) {
-      // Se não houver POS, mostrar modal com mensagem de erro
-      const posList = document.getElementById("posList");
-      const posSelectTitle = document.getElementById("posSelectTitle");
-      posSelectTitle.textContent = "Selecione uma POS - Total: 0";
-      posList.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--muted);">Nenhuma POS ativa encontrada.</div>';
-      document.getElementById("posSelectModal").classList.add("open");
+      posSelectTitle.textContent = "Nenhum terminal disponível";
+      posList.innerHTML = '<div class="pos-msg">Nenhuma POS ativa encontrada para este cliente.</div>';
+      $("posSelectModal").classList.add("open");
       return;
     }
 
-    // Se houver exatamente 1 POS, selecionar automaticamente sem abrir o modal
+    // Apenas 1 POS: seleciona automaticamente
     if (posAtivas.length === 1) {
       const pos = posAtivas[0];
-      // Selecionar automaticamente
       selectedPosId = pos.id;
-      localStorage.setItem("supertef_pos_selected_id", pos.id.toString());
+      localStorage.setItem("supertef_pos_selected_id", String(pos.id));
       localStorage.setItem("supertef_pos_selected_name", pos.nome);
-      
-      // Mostrar mensagem informativa
-      showInfo(`POS "${pos.nome}" selecionada automaticamente.`);
-      
-      // Chamar callback imediatamente sem abrir modal
-      if (callback && typeof callback === 'function') {
-        callback(pos.id, pos.nome);
-      }
-      
-      // Limpar callback
+      showInfo(`Terminal “${pos.nome}” selecionado automaticamente.`);
       posSelectionCallback = null;
+      if (typeof callback === "function") callback(pos.id, pos.nome);
       return;
     }
 
-    // Se houver mais de 1 POS, abrir modal para seleção
-    const posList = document.getElementById("posList");
-    const posSelectTitle = document.getElementById("posSelectTitle");
-    
-    // Atualizar título com o total
-    posSelectTitle.textContent = `Selecione uma POS - Total: ${posAtivas.length}`;
-    
-    // Renderizar lista de POS
+    posSelectTitle.textContent = `Selecione o terminal (${posAtivas.length})`;
+    const lastId = localStorage.getItem("supertef_pos_selected_id");
     posList.innerHTML = "";
     posAtivas.forEach(pos => {
       const posItem = document.createElement("div");
-      posItem.className = "pos-item";
+      posItem.className = "pos-item" + (String(pos.id) === lastId ? " selected" : "");
       posItem.dataset.posId = pos.id;
+      posItem.tabIndex = 0;
       posItem.innerHTML = `
-        <div class="pos-item-name">${pos.nome}</div>
-        <div class="pos-item-status">Status: Ativo</div>
+        <div class="pos-icon"><svg class="ic"><use href="#i-pos"/></svg></div>
+        <div>
+          <div class="pos-item-name">${escapeHtml(pos.nome)}</div>
+          <div class="pos-item-status">Ativo${String(pos.id) === lastId ? " · último usado" : ""}</div>
+        </div>
+        <svg class="ic chev-r"><use href="#i-chevron"/></svg>
       `;
-      
       posItem.addEventListener("click", () => selectPOS(pos.id, pos.nome));
+      posItem.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); selectPOS(pos.id, pos.nome); }
+      });
       posList.appendChild(posItem);
     });
-    
-    // Abrir modal de seleção
-    document.getElementById("posSelectModal").classList.add("open");
-  } catch(e) {
-    // Fechar modal de busca em caso de erro
+
+    $("posSelectModal").classList.add("open");
+    const first = posList.querySelector(".pos-item.selected") || posList.querySelector(".pos-item");
+    if (first) setTimeout(() => first.focus(), 50);
+  } catch (e) {
     searchingModal.classList.remove("open");
-    
-    // Em caso de erro, abrir modal com mensagem de erro
-    const posList = document.getElementById("posList");
-    const posSelectTitle = document.getElementById("posSelectTitle");
-    posSelectTitle.textContent = "Erro ao buscar POS";
-    posList.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--bad);">Erro: ${e.message}</div>`;
-    document.getElementById("posSelectModal").classList.add("open");
+    posSelectTitle.textContent = "Erro ao buscar terminais";
+    posList.innerHTML = `<div class="pos-msg err">${escapeHtml(e.message)}</div>`;
+    $("posSelectModal").classList.add("open");
   }
 }
 
 function selectPOS(posId, posNome) {
-  // Remover seleção anterior
   document.querySelectorAll(".pos-item").forEach(item => {
-    item.classList.remove("selected");
+    item.classList.toggle("selected", String(item.dataset.posId) === String(posId));
   });
 
-  // Selecionar nova POS
-  const selectedItem = document.querySelector(`[data-pos-id="${posId}"]`);
-  if (selectedItem) {
-    selectedItem.classList.add("selected");
-  }
-
   selectedPosId = posId;
-  localStorage.setItem("supertef_pos_selected_id", posId.toString());
+  localStorage.setItem("supertef_pos_selected_id", String(posId));
   localStorage.setItem("supertef_pos_selected_name", posNome);
 
-  // Salvar callback temporariamente
   const callback = posSelectionCallback;
-  
-  // Fechar modal após pequeno delay para feedback visual
+  posSelectionCallback = null;
   setTimeout(() => {
     closePosSelectModal();
-    
-    // Chamar callback após fechar o modal
-    if (callback && typeof callback === 'function') {
-      callback(posId, posNome);
-    }
-  }, 300);
+    if (typeof callback === "function") callback(posId, posNome);
+  }, 180);
 }
 
 function closePosSelectModal() {
-  document.getElementById("posSelectModal").classList.remove("open");
-  // Limpar callback ao fechar sem selecionar
-  if (posSelectionCallback) {
-    posSelectionCallback = null;
-  }
+  $("posSelectModal").classList.remove("open");
+  posSelectionCallback = null;
 }

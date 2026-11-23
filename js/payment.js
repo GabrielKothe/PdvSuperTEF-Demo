@@ -1,13 +1,71 @@
 // =========================
 // PAGAMENTO E POLLING
 // =========================
+//
+// O status do pagamento é consultado em GET /pagamentos/by-uniqueid/{id}
+// ("detalhar pagamento") a cada POLL_MS (4s).
+//
+// Regras para evitar HTTP 429 (Too Many Requests):
+//  - Usa setTimeout encadeado (e não setInterval): a próxima consulta só é
+//    agendada DEPOIS que a anterior termina, então nunca há requisições
+//    sobrepostas quando a API demora para responder.
+//  - A primeira consulta acontece POLL_MS após o POST (não imediatamente).
+//  - Se a API responder 429, respeita o header Retry-After ou dobra o
+//    intervalo (até POLL_MAX_BACKOFF_MS) antes de tentar de novo.
+//  - Cada pagamento tem uma "sessão" de polling; consultas de um pagamento
+//    anterior são descartadas e nunca reagendadas.
 
 let pollTimer = null;
+let pollSession = 0;
+let pollDelay = POLL_MS;
 let currentPaymentId = null;
-let pollingTimeout = null; // Timeout para cancelar automaticamente após 1 minuto
-let countdownTimer = null; // Timer para atualizar o contador regressivo
-let countdownStartTime = null; // Timestamp de quando o contador começou
-const POLLING_TIMEOUT_MS = 60000; // 1 minuto em milissegundos
+let currentStatus = 0;
+let pollingTimeout = null;
+let countdownTimer = null;
+let countdownStartTime = null;
+const POLLING_TIMEOUT_MS = 60000; // 1 minuto
+
+const STATUS_LABELS = { 1: "Aguardando", 4: "Pago", 5: "Cancelado" };
+const METHOD_LABELS = {
+  debit: "Débito", credit: "Crédito à vista", credit_inst: "Crédito parcelado",
+  pix: "PIX", voucher: "Voucher"
+};
+
+// Atualiza o status atual em memória e na tela
+function setStatus(st) {
+  currentStatus = st;
+  $("pstatus").textContent = String(st);
+  $("pstatusLabel").textContent = STATUS_LABELS[st]
+    ? `${STATUS_LABELS[st]} (${st})`
+    : `Processando (${st})`;
+  setBadge(st);
+  updateCancelButton();
+}
+
+// Exibe o resultado final no modal
+function showPaymentResult(kind, title, sub) {
+  $("statusArea").style.display = "none";
+  $("successArea").style.display = kind === "success" ? "flex" : "none";
+  $("canceledArea").style.display = kind === "success" ? "none" : "flex";
+  $("modalTitle").textContent = title;
+  $("modalSub").textContent = sub;
+  if (kind !== "success") $("canceledHint").textContent = sub;
+  $("btnCloseOk").style.display = "inline-flex";
+  $("btnCloseOk").textContent = kind === "success" ? "Nova venda" : "Fechar";
+  $("btnCancelTef").style.display = "none";
+  stopAllPaymentTimers();
+  if (kind === "success") {
+    clearCart();
+    newOrderId();
+  }
+  setTimeout(() => $("btnCloseOk").focus(), 50);
+}
+
+function stopAllPaymentTimers() {
+  stopPolling();
+  clearPollingTimeout();
+  stopCountdown();
+}
 
 // Inicia o processo de pagamento
 async function startPayment() {
@@ -17,195 +75,155 @@ async function startPayment() {
   const cliente = localStorage.getItem("supertef_cliente_chave");
 
   if (!token || !cliente) {
-    showWarning("PDV não configurado. Acesse ⚙️ Configurações.");
+    showWarning("PDV não configurado. Abra as Configurações.");
+    openConfig();
     return;
   }
-
   if (items <= 0) {
     showWarning("Carrinho vazio.");
     return;
   }
+  if ($("modal").classList.contains("open")) return; // já há um pagamento em andamento
 
-  // Verificar se precisa listar POS
   const listarPos = localStorage.getItem("supertef_listar_pos") === "true";
   if (listarPos) {
-    // Sempre mostrar modal de seleção de POS quando configurado para listar
-    await openPosSelectModal((posId, posNome) => {
-      // Callback executado após selecionar POS - continuar com o pagamento
-      proceedWithPayment(total, items);
-    });
-    return; // Aguardar seleção
+    await openPosSelectModal(() => proceedWithPayment(total, items));
+    return;
   }
-
-  // Continuar com o pagamento normalmente (usa POS_ID manual)
   proceedWithPayment(total, items);
 }
 
 // Procede com o pagamento após verificar/selecionar POS
 async function proceedWithPayment(total, items) {
-  // Solicitar pagamento (POST /pagamentos)
   let payload;
   try {
     payload = buildPaymentPayload(total);
-  } catch(e) {
+  } catch (e) {
     showError(e.message);
     return;
   }
 
-  // Resetar estado do modal para novo pagamento
+  stopAllPaymentTimers();
+  currentPaymentId = null;
   resetModalState();
-  
-  // Atualizar informações específicas deste pagamento
-  $("modalSub").textContent = `Total: ${fmtBRL(total)} — Itens: ${items}`;
-  
-  // Parar polling anterior se existir
-  stopPolling();
-  clearPollingTimeout();
-  stopCountdown();
-  
+
+  const method = METHOD_LABELS[getSelectedPaymentMethod()] || "";
+  const inst = payload.installment_count > 1 ? ` em ${payload.installment_count}x` : "";
+  $("modalTitle").textContent = `Cobrando ${fmtBRL(total)}`;
+  $("modalSub").textContent = `${method}${inst} · ${items} ${items === 1 ? "item" : "itens"}`;
   openModal();
 
   toastLog("Enviando solicitação de pagamento (POST /pagamentos) ...");
   toastLog("Payload: " + JSON.stringify(payload));
 
+  // Bloquear o botão de cancelar enquanto o POST não retorna
+  $("btnCancelTef").disabled = true;
+  $("btnCancelTef").textContent = "Enviando…";
+
   let resp;
   try {
-    resp = await apiFetch("/pagamentos", { method:"POST", body: JSON.stringify(payload) });
-  } catch(e) {
+    resp = await apiFetch("/pagamentos", { method: "POST", body: JSON.stringify(payload) });
+  } catch (e) {
     toastLog("Erro ao solicitar: " + e.message);
-    $("statusArea").style.display = "none";
-    $("successArea").style.display = "none";
-    $("canceledArea").style.display = "block";
-    $("modalTitle").textContent = "Falha ao solicitar pagamento";
-    $("modalSub").textContent = "Erro na transação";
     setBadge(5);
-    $("btnCloseOk").style.display = "inline-block";
-    $("btnCancelTef").style.display = "none";
+    showPaymentResult("canceled", "Falha ao solicitar pagamento", e.message);
     return;
   }
 
   currentPaymentId = resp?.payment_uniqueid;
   if (!currentPaymentId) {
     toastLog("Resposta sem payment_uniqueid. Verifique a API.");
-    $("statusArea").style.display = "none";
-    $("successArea").style.display = "none";
-    $("canceledArea").style.display = "block";
-    $("modalTitle").textContent = "Resposta inesperada";
-    $("modalSub").textContent = "Erro na transação";
     setBadge(5);
-    $("btnCloseOk").style.display = "inline-block";
-    $("btnCancelTef").style.display = "none";
+    showPaymentResult("canceled", "Resposta inesperada", "A API não retornou o ID do pagamento.");
     return;
   }
 
   $("pid").textContent = String(currentPaymentId);
+  $("pid").title = String(currentPaymentId);
   const initialStatus = Number(resp.payment_status ?? 1);
-  $("pstatus").textContent = String(initialStatus);
-  setBadge(initialStatus);
-  updateCancelButton(); // Atualizar texto do botão
+  setStatus(initialStatus);
   toastLog("Solicitado com sucesso. payment_uniqueid=" + currentPaymentId);
 
-  // Se já veio cancelado (status 5) ou aprovado (status 4), tratar imediatamente
   if (initialStatus === 5) {
-    toastLog("Pagamento cancelado (status 5).");
-    $("statusArea").style.display = "none";
-    $("successArea").style.display = "none";
-    $("canceledArea").style.display = "block";
-    $("modalTitle").textContent = "Pagamento cancelado";
-    $("modalSub").textContent = "Transação cancelada";
-    $("btnCloseOk").style.display = "inline-block";
-    $("btnCancelTef").style.display = "none";
-    return; // Não inicia polling
-  } else if (initialStatus === 4) {
-    toastLog("Pagamento aprovado (status 4).");
-    $("statusArea").style.display = "none";
-    $("successArea").style.display = "block";
-    $("canceledArea").style.display = "none";
-    $("modalTitle").textContent = "Venda concluída";
-    $("modalSub").textContent = "Pagamento confirmado";
-    $("btnCloseOk").style.display = "inline-block";
-    $("btnCancelTef").style.display = "none";
-    clearCart();
-    return; // Não inicia polling
+    showPaymentResult("canceled", "Pagamento cancelado", "Transação cancelada");
+    return;
+  }
+  if (initialStatus === 4) {
+    showPaymentResult("success", "Venda concluída", "Pagamento confirmado");
+    return;
   }
 
-  // Polling GET /pagamentos/by-uniqueid/{id}
-  if (pollTimer) clearInterval(pollTimer);
-  if (pollingTimeout) clearTimeout(pollingTimeout);
-  stopCountdown();
-  
-  // Iniciar timeout de 1 minuto para cancelar automaticamente
-  pollingTimeout = setTimeout(() => {
-    handlePollingTimeout();
-  }, POLLING_TIMEOUT_MS);
-  
-  // Iniciar contador regressivo
+  // Timeout de 1 minuto + contador
+  pollingTimeout = setTimeout(handlePollingTimeout, POLLING_TIMEOUT_MS);
   startCountdown();
-  
-  pollTimer = setInterval(() => pollPayment(currentPaymentId), POLL_MS);
-  // Poll imediato
-  await pollPayment(currentPaymentId);
+
+  // Inicia o polling (primeira consulta em POLL_MS)
+  startPolling(currentPaymentId);
 }
 
-// Consulta o status do pagamento periodicamente
-async function pollPayment(pid) {
+// Inicia uma nova sessão de polling para o pagamento
+function startPolling(pid) {
+  stopPolling();
+  pollSession++;
+  pollDelay = POLL_MS;
+  scheduleNextPoll(pid, pollSession, POLL_MS);
+}
+
+function scheduleNextPoll(pid, session, delay) {
+  if (session !== pollSession) return;
+  if (pollTimer) clearTimeout(pollTimer);
+  pollTimer = setTimeout(() => pollPayment(pid, session), delay);
+}
+
+// Consulta o status do pagamento (uma vez) e agenda a próxima consulta
+async function pollPayment(pid, session) {
+  pollTimer = null;
+  if (session !== pollSession) return;
+
   try {
     toastLog(`Consultando status (GET /pagamentos/by-uniqueid/${pid}) ...`);
-    const data = await apiFetch(`/pagamentos/by-uniqueid/${encodeURIComponent(pid)}`, { method:"GET" });
+    const data = await apiFetch(`/pagamentos/by-uniqueid/${encodeURIComponent(pid)}`, { method: "GET" });
+
+    // Pagamento mudou ou polling foi parado enquanto aguardava a resposta
+    if (session !== pollSession) return;
+
+    pollDelay = POLL_MS; // resposta OK: volta ao intervalo normal
     const st = Number(data?.payment_status);
-    $("pstatus").textContent = String(st);
-    setBadge(st);
-    updateCancelButton(); // Atualizar texto do botão baseado no status
+    if (!Number.isNaN(st)) setStatus(st);
 
     if (st === 4) {
       toastLog("Pagamento aprovado (status 4).");
-
-      document.getElementById("statusArea").style.display = "none";
-      document.getElementById("successArea").style.display = "block";
-      document.getElementById("canceledArea").style.display = "none";
-
-      document.getElementById("modalTitle").textContent = "Venda concluída";
-      document.getElementById("modalSub").textContent = "Pagamento confirmado";
-
-      document.getElementById("btnCloseOk").style.display = "inline-block";
-      document.getElementById("btnCancelTef").style.display = "none";
-
-      stopPolling();
-      clearPollingTimeout();
-      stopCountdown();
-      clearCart();
-    } else if (st === 5) {
-      toastLog("Pagamento cancelado (status 5).");
-
-      document.getElementById("statusArea").style.display = "none";
-      document.getElementById("successArea").style.display = "none";
-      document.getElementById("canceledArea").style.display = "block";
-
-      document.getElementById("modalTitle").textContent = "Pagamento cancelado";
-      document.getElementById("modalSub").textContent = "Transação cancelada";
-
-      document.getElementById("btnCloseOk").style.display = "inline-block";
-      document.getElementById("btnCancelTef").style.display = "none";
-
-      stopPolling();
-      clearPollingTimeout();
-      stopCountdown();
+      showPaymentResult("success", "Venda concluída", "Pagamento confirmado");
+      return;
     }
-  } catch(e) {
-    toastLog("Erro no polling: " + e.message);
-    // mantém tentando (pode ser instabilidade)
+    if (st === 5) {
+      toastLog("Pagamento cancelado (status 5).");
+      showPaymentResult("canceled", "Pagamento cancelado", data?.payment_message || "Transação cancelada");
+      return;
+    }
+  } catch (e) {
+    if (session !== pollSession) return;
+    if (e.status === 429) {
+      pollDelay = Math.max(e.retryAfterMs || 0, Math.min(pollDelay * 2, POLL_MAX_BACKOFF_MS));
+      toastLog(`Limite de requisições atingido (429). Nova consulta em ${Math.round(pollDelay / 1000)}s.`);
+    } else {
+      pollDelay = POLL_MS;
+      toastLog("Erro no polling: " + e.message);
+    }
   }
+
+  scheduleNextPoll(pid, session, pollDelay);
 }
 
-// Para o polling
+// Para o polling (invalida a sessão atual)
 function stopPolling() {
+  pollSession++;
   if (pollTimer) {
-    clearInterval(pollTimer);
+    clearTimeout(pollTimer);
     pollTimer = null;
   }
 }
 
-// Limpa o timeout de polling
 function clearPollingTimeout() {
   if (pollingTimeout) {
     clearTimeout(pollingTimeout);
@@ -213,246 +231,115 @@ function clearPollingTimeout() {
   }
 }
 
-// Inicia o contador regressivo de timeout
+// Contador regressivo
 function startCountdown() {
-  // Limpar contador anterior se existir
   stopCountdown();
-  
-  // Mostrar elemento do contador
-  const counterElement = document.getElementById("timeoutCounter");
-  const timeElement = document.getElementById("timeoutTime");
-  
+  const counterElement = $("timeoutCounter");
+  const timeElement = $("timeoutTime");
   if (!counterElement || !timeElement) return;
-  
-  counterElement.style.display = "flex";
-  
-  // Definir tempo inicial
+
+  counterElement.style.display = "block";
   countdownStartTime = Date.now();
-  const totalSeconds = Math.floor(POLLING_TIMEOUT_MS / 1000);
-  updateCountdownDisplay(totalSeconds, timeElement);
-  
-  // Atualizar contador a cada segundo
+  updateCountdownDisplay(POLLING_TIMEOUT_MS);
+
   countdownTimer = setInterval(() => {
-    const elapsed = Date.now() - countdownStartTime;
-    const remaining = Math.max(0, POLLING_TIMEOUT_MS - elapsed);
-    const remainingSeconds = Math.floor(remaining / 1000);
-    
-    updateCountdownDisplay(remainingSeconds, timeElement);
-    
-    // Se o tempo acabou, o handlePollingTimeout vai ser chamado
-    if (remainingSeconds <= 0) {
-      stopCountdown();
-    }
+    const remaining = Math.max(0, POLLING_TIMEOUT_MS - (Date.now() - countdownStartTime));
+    updateCountdownDisplay(remaining);
+    if (remaining <= 0) stopCountdown(true);
   }, 1000);
 }
 
-// Atualiza a exibição do contador
-function updateCountdownDisplay(seconds, timeElement) {
-  if (!timeElement) return;
-  
-  const minutes = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  const formattedTime = `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  
-  timeElement.textContent = formattedTime;
-  
-  // Adicionar classe de aviso quando restam 10 segundos ou menos
-  if (seconds <= 10) {
-    timeElement.classList.add("warning");
-  } else {
-    timeElement.classList.remove("warning");
+function updateCountdownDisplay(remainingMs) {
+  const timeElement = $("timeoutTime");
+  const bar = $("timeoutBar");
+  const seconds = Math.ceil(remainingMs / 1000);
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (timeElement) {
+    timeElement.textContent = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    timeElement.classList.toggle("warning", seconds <= 10);
+  }
+  if (bar) {
+    bar.style.width = `${(remainingMs / POLLING_TIMEOUT_MS) * 100}%`;
+    bar.classList.toggle("warning", seconds <= 10);
   }
 }
 
-// Para o contador regressivo
-function stopCountdown() {
+function stopCountdown(keepVisible = false) {
   if (countdownTimer) {
     clearInterval(countdownTimer);
     countdownTimer = null;
   }
-  
   countdownStartTime = null;
-  
-  // Esconder elemento do contador
-  const counterElement = document.getElementById("timeoutCounter");
-  if (counterElement) {
-    counterElement.style.display = "none";
-  }
-  
-  // Remover classe de aviso
-  const timeElement = document.getElementById("timeoutTime");
-  if (timeElement) {
-    timeElement.classList.remove("warning");
+  if (!keepVisible) {
+    const counterElement = $("timeoutCounter");
+    if (counterElement) counterElement.style.display = "none";
   }
 }
 
-// Trata o timeout de 1 minuto - cancela o pagamento automaticamente
+// Timeout de 1 minuto — cancela o pagamento automaticamente
 async function handlePollingTimeout() {
-  toastLog("Timeout: 1 minuto de polling atingido sem resposta final. Cancelando pagamento automaticamente...");
-  
-  // Parar polling e contador
+  toastLog("Timeout: 1 minuto sem resposta final. Cancelando automaticamente...");
   stopPolling();
   clearPollingTimeout();
   stopCountdown();
-  
-  // Atualizar contador para 00:00
-  const timeElement = document.getElementById("timeoutTime");
-  if (timeElement) {
-    timeElement.textContent = "00:00";
-    timeElement.classList.add("warning");
-  }
-  
-  // Verificar se ainda há um pagamento em andamento
-  if (!currentPaymentId) {
-    // Se não houver payment_uniqueid, apenas fechar
-    $("statusArea").style.display = "none";
-    $("successArea").style.display = "none";
-    $("canceledArea").style.display = "block";
-    $("modalTitle").textContent = "Tempo esgotado";
-    $("modalSub").textContent = "Não foi possível obter resposta do pagamento";
-    $("btnCloseOk").style.display = "inline-block";
-    $("btnCancelTef").style.display = "none";
-    setBadge(5);
-    showError("Tempo de espera esgotado. O pagamento não retornou status final após 1 minuto.");
-    return;
-  }
-  
-  // Tentar cancelar o pagamento na API
-  const currentStatus = Number($("pstatus").textContent || "0");
-  
-  // Se o status ainda for 1 (aguardando), tentar cancelar via API
-  if (currentStatus === 1) {
+
+  if (currentPaymentId && currentStatus === 1) {
     try {
-      toastLog(`Tentando cancelar pagamento automaticamente (payment_uniqueid: ${currentPaymentId})...`);
       const response = await cancelarPagamento(currentPaymentId);
-      
       toastLog(`Resposta do cancelamento automático: ${JSON.stringify(response)}`);
-      
-      if (response && (response.status === true || response.status === "true")) {
-        toastLog(`Pagamento cancelado automaticamente: ${response.message || "Cancelado com sucesso"}`);
-      } else {
-        toastLog(`Não foi possível cancelar via API: ${response?.message || "Erro desconhecido"}`);
-      }
-    } catch(e) {
+    } catch (e) {
       toastLog(`Erro ao cancelar automaticamente: ${e.message}`);
-      // Continuar mesmo se houver erro na API - vamos mostrar como cancelado na UI
     }
   }
-  
-  // Atualizar UI para mostrar como cancelado (timeout)
-  const st = 5; // Status cancelado
-  $("pstatus").textContent = String(st);
-  setBadge(st);
-  updateCancelButton();
-  
-  $("statusArea").style.display = "none";
-  $("successArea").style.display = "none";
-  $("canceledArea").style.display = "block";
-  
-  $("modalTitle").textContent = "Tempo esgotado";
-  $("modalSub").textContent = "Pagamento cancelado automaticamente após 1 minuto sem resposta";
-  
-  $("btnCloseOk").style.display = "inline-block";
-  $("btnCancelTef").style.display = "none";
-  
-  showError("Tempo de espera esgotado. O pagamento foi cancelado automaticamente após 1 minuto sem resposta final.");
+
+  setStatus(5);
+  showPaymentResult("canceled", "Tempo esgotado", "Cancelado automaticamente após 1 minuto sem resposta");
+  showError("Tempo de espera esgotado. O pagamento foi cancelado automaticamente.");
 }
 
-// Cancela a solicitação de pagamento (só funciona se status for 1 - aguardando)
+// Cancela a solicitação de pagamento (só se status = 1)
 async function cancelarSolicitacaoPagamento() {
-  if (!currentPaymentId) {
-    showWarning("Nenhum pagamento em andamento para cancelar.");
-    return;
-  }
-
-  // Verificar se o status atual permite cancelamento (status 1 = aguardando)
-  const currentStatus = Number($("pstatus").textContent || "0");
-  if (currentStatus !== 1) {
-    stopPolling();
-    clearPollingTimeout();
-    stopCountdown();
+  if (!currentPaymentId || currentStatus !== 1) {
+    stopAllPaymentTimers();
     closeModal();
     return;
   }
 
-  // Validar formato do payment_uniqueid
   const pidToCancel = String(currentPaymentId).trim();
-  if (!pidToCancel) {
-    showError("Payment uniqueid inválido.");
-    return;
-  }
-
-  // Desabilitar botão durante o processamento
   const btn = $("btnCancelTef");
-  const originalText = btn.textContent;
   btn.disabled = true;
-  btn.textContent = "Cancelando...";
+  btn.textContent = "Cancelando…";
 
-  toastLog(`Cancelando solicitação de pagamento (payment_uniqueid: ${pidToCancel})...`);
+  // Pausa o polling durante o cancelamento para não somar requisições
+  stopPolling();
+  toastLog(`Cancelando solicitação (payment_uniqueid: ${pidToCancel})...`);
 
   try {
     const response = await cancelarPagamento(pidToCancel);
-    
     toastLog(`Resposta recebida: ${JSON.stringify(response)}`);
-    
-    // Verificar se response existe e tem a propriedade status
-    if (!response) {
-      throw new Error("Resposta vazia da API");
-    }
-    
+    if (!response) throw new Error("Resposta vazia da API");
+
     if (response.status === true || response.status === "true") {
-      toastLog(`Pagamento cancelado: ${response.message || "Cancelado com sucesso"}`);
-      
-      // Atualizar UI para mostrar status cancelado
-      const st = Number(response.data?.payment_status ?? 5);
-      $("pstatus").textContent = String(st);
-      setBadge(st);
-      updateCancelButton();
-
-      $("statusArea").style.display = "none";
-      $("successArea").style.display = "none";
-      $("canceledArea").style.display = "block";
-
-      $("modalTitle").textContent = "Pagamento cancelado";
-      $("modalSub").textContent = response.data?.payment_message || response.message || "Transação cancelada";
-
-      $("btnCloseOk").style.display = "inline-block";
-      $("btnCancelTef").style.display = "none";
-
-      stopPolling();
-      clearPollingTimeout();
-      stopCountdown();
-    } else {
-      // Status false - mostrar mensagem de erro
-      const errorMsg = response.message || "Erro ao cancelar pagamento";
-      toastLog(`Erro: ${errorMsg}`);
-      showError(errorMsg);
-      btn.disabled = false;
-      btn.textContent = originalText;
+      setStatus(Number(response.data?.payment_status ?? 5));
+      showPaymentResult("canceled", "Pagamento cancelado",
+        response.data?.payment_message || response.message || "Transação cancelada pelo operador");
+      return;
     }
-  } catch(e) {
-    const errorMessage = e.message || "Erro desconhecido";
-    toastLog(`Erro ao cancelar: ${errorMessage}`);
-    showError(`Erro ao cancelar pagamento: ${errorMessage}`);
-    btn.disabled = false;
-    btn.textContent = originalText;
+    throw new Error(response.message || "Não foi possível cancelar o pagamento");
+  } catch (e) {
+    toastLog(`Erro ao cancelar: ${e.message}`);
+    showError(`Erro ao cancelar: ${e.message}`);
+    updateCancelButton();
+    // Retoma o polling, pois o pagamento continua em andamento
+    if (currentPaymentId && currentStatus === 1 && pollingTimeout) startPolling(currentPaymentId);
   }
 }
 
-// Atualiza o texto do botão baseado no status do pagamento
+// Atualiza o texto do botão de cancelar/fechar
 function updateCancelButton() {
   const btn = $("btnCancelTef");
   if (!btn) return;
-  
-  const status = Number($("pstatus").textContent || "0");
-  
-  if (status === 1 && currentPaymentId) {
-    // Status 1 (aguardando) - permitir cancelamento
-    btn.textContent = "Fechar e Cancelar solicitação";
-    btn.disabled = false;
-  } else {
-    // Outros status - apenas fechar
-    btn.textContent = "Fechar";
-    btn.disabled = false;
-  }
+  btn.disabled = false;
+  btn.textContent = (currentStatus === 1 && currentPaymentId) ? "Cancelar cobrança" : "Fechar";
 }
