@@ -70,6 +70,11 @@ function addToCart(sku) {
       switchTab('cart');
     }
   }
+
+  // Rola o item adicionado para a vista
+  const idx = Array.from(cart.keys()).indexOf(sku);
+  const row = $("cartRows").children[idx];
+  if (row && window.matchMedia("(min-width: 901px)").matches) row.scrollIntoView({ block: "nearest" });
 }
 
 // Incrementa quantidade de um item
@@ -113,70 +118,60 @@ function cartTotals() {
   return { total, items };
 }
 
+// Remove um item inteiro
+function removeItem(sku) {
+  cart.delete(sku);
+  renderCart();
+  saveCartToCache();
+}
+
 // Renderiza o carrinho na tela
 function renderCart() {
   const rows = $("cartRows");
   rows.innerHTML = "";
   for (const it of cart.values()) {
-    const tr = document.createElement("tr");
-    
-    // Usar imagem do item do carrinho (já preservada quando adicionado)
-    const productImage = it.image || "";
-    
-    const firstTd = document.createElement("td");
-    firstTd.innerHTML = `
-      <div class="p-img-wrapper cart-img">
-        ${productImage ? `<img src="${productImage}" alt="${it.name}" class="cart-item-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />` : ''}
-        <div class="cart-item-img-placeholder" style="display: ${productImage ? 'none' : 'flex'}">🛍️</div>
+    const row = document.createElement("div");
+    row.className = "cart-item";
+    row.innerHTML = `
+      <div class="cart-thumb">${productVisual(it)}</div>
+      <div class="cart-info">
+        <div class="cart-name" title="${escapeHtml(it.name)}">${escapeHtml(it.name)}</div>
+        <div class="cart-unit">${fmtBRL(it.price)} / un</div>
       </div>
-      <div class="cart-item-info">
-        <div style="font-weight:700">${it.name}</div>
-        <div style="color:var(--muted); font-size:12px;">${fmtBRL(it.price)} un</div>
-      </div>
-    `;
-    
-    const qtyTd = document.createElement("td");
-    const decreaseBtnClass = it.qty === 1 ? 'qty-single' : '';
-    qtyTd.innerHTML = `
+      <div class="cart-total">${fmtBRL(it.price * it.qty)}</div>
       <div class="qty">
-        <button class="${decreaseBtnClass}" title="Diminuir">−</button>
-        <span style="min-width:22px; text-align:center;">${it.qty}</span>
-        <button title="Aumentar">+</button>
+        <button class="${it.qty === 1 ? "qty-single" : ""}" title="${it.qty === 1 ? "Remover" : "Diminuir"}">
+          <svg class="ic"><use href="#${it.qty === 1 ? "i-trash" : "i-minus"}"/></svg>
+        </button>
+        <span>${it.qty}</span>
+        <button title="Aumentar"><svg class="ic"><use href="#i-plus"/></svg></button>
       </div>
+      <button class="cart-remove" title="Remover item">Remover</button>
     `;
-    
-    const priceTd = document.createElement("td");
-    priceTd.textContent = fmtBRL(it.price * it.qty);
-    
-    tr.appendChild(firstTd);
-    tr.appendChild(qtyTd);
-    tr.appendChild(priceTd);
-    
-    const btns = tr.querySelectorAll("button");
+    const btns = row.querySelectorAll(".qty button");
     btns[0].addEventListener("click", () => decQty(it.sku));
     btns[1].addEventListener("click", () => incQty(it.sku));
-    rows.appendChild(tr);
+    row.querySelector(".cart-remove").addEventListener("click", () => removeItem(it.sku));
+    rows.appendChild(row);
   }
 
   const { total, items } = cartTotals();
+  const itemsTxt = `${items} ${items === 1 ? "item" : "itens"}`;
+  $("cartEmpty").hidden = items > 0;
   $("subTotal").textContent = fmtBRL(total);
   $("grandTotal").textContent = fmtBRL(total);
-  if ($("grandTotalPayment")) {
-    $("grandTotalPayment").textContent = fmtBRL(total);
-  }
-  $("cartCount").textContent = `${items} itens`;
-  
-  // Desabilitar botão "Escolher forma de pagamento" se carrinho vazio
-  const btnChoosePayment = document.getElementById("btnChoosePayment");
-  if (btnChoosePayment) {
-    if (items === 0) {
-      btnChoosePayment.disabled = true;
-      btnChoosePayment.style.opacity = "0.5";
-      btnChoosePayment.style.cursor = "not-allowed";
-    } else {
-      btnChoosePayment.disabled = false;
-      btnChoosePayment.style.opacity = "1";
-      btnChoosePayment.style.cursor = "pointer";
-    }
-  }
+  $("grandTotalPayment").textContent = fmtBRL(total);
+  $("payBtnAmount").textContent = fmtBRL(total);
+  $("paymentItemsInfo").textContent = itemsTxt;
+  $("cartCount").textContent = items;
+  $("mbItems").textContent = itemsTxt;
+  $("mbTotal").textContent = fmtBRL(total);
+  $("mobileBar").classList.toggle("hide", items === 0);
+
+  $("btnChoosePayment").disabled = items === 0;
+  $("btnClear").disabled = items === 0;
+  $("btnPay").disabled = items === 0;
+
+  if (typeof updateProductBadges === "function") updateProductBadges();
+  if (typeof updateInstallmentInfo === "function") updateInstallmentInfo();
 }

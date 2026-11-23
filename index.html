@@ -1,357 +1,400 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="dark">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>PDV - SuperTEF (Demonstração)</title>
+  <title>PDV SuperTEF — Demonstração</title>
   <link rel="icon" type="image/png" href="img/Logo SuperTef.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
-<header>
-  <div class="wrap">
-    <div class="top">
-      <div class="brand">
-        <img src="img/Logo SuperTef.png" alt="SuperTEF" class="logo" />
-      </div>
 
-      <div class="brand-title">
-        <h1>PDV — (Demonstração)</h1>
-      </div>
+<!-- Sprite de ícones -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-cart" viewBox="0 0 24 24"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2.5 3h2.6l2.4 12.2a1.6 1.6 0 0 0 1.6 1.3h8.8a1.6 1.6 0 0 0 1.6-1.2L21.5 7H6"/></symbol>
+    <symbol id="i-card" viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19M6.5 15h4"/></symbol>
+    <symbol id="i-cards" viewBox="0 0 24 24"><rect x="2.5" y="7" width="16" height="12" rx="2.2"/><path d="M6 4h13.3a2.2 2.2 0 0 1 2.2 2.2V15M2.5 11h16"/></symbol>
+    <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4Z"/><path d="M9 6v12" stroke-dasharray="2 2"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11Z"/></symbol>
+    <symbol id="i-log" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+    <symbol id="i-shrink" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M11 18l-6-6 6-6"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-pos" viewBox="0 0 24 24"><rect x="5" y="2.5" width="14" height="19" rx="2.5"/><rect x="8" y="5.5" width="8" height="5" rx="1"/><path d="M8.5 14h.01M12 14h.01M15.5 14h.01M8.5 17.5h.01M12 17.5h.01M15.5 17.5h.01"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.1 3.9M6.6 6.6C3.9 8.3 2 12 2 12s3.6 7 10 7c1.7 0 3.2-.5 4.5-1.2M9.9 9.9a3 3 0 0 0 4.2 4.2"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5Z"/><path d="m3 8 9 5 9-5M12 13v8"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2 20h20Z"/><path d="M12 10v4M12 17h.01"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+  </defs>
+</svg>
 
-      <div style="display: flex; gap: 8px;">
-        <button id="btnToggleTheme" class="config-btn" title="Alternar tema">🌓</button>
-        <button id="btnToggleLog" class="config-btn">📋 Log</button>
-        <button id="btnToggleFullscreen" class="config-btn" title="Tela cheia">⛶ Tela Cheia</button>
-        <button id="btnConfig" class="config-btn">⚙️ Configurações</button>
+<div class="app">
+
+  <!-- TOPO -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="logo-mark"><img src="img/Logo SuperTef.png" alt="SuperTEF" /></div>
+      <div class="title-block">
+        <div class="app-title">SuperTEF PDV</div>
+        <div class="app-sub">Frente de caixa <span class="tag">Demo</span></div>
       </div>
     </div>
-  </div>
-</header>
 
-<!-- Painel de Log lateral esquerdo -->
+    <div class="topbar-right">
+      <button id="connStatus" class="conn-chip" title="Status da configuração">
+        <span class="dot"></span><span class="conn-text">Não configurado</span>
+      </button>
+      <div class="clock" id="clock">--:--</div>
+      <div class="divider-v"></div>
+      <button id="btnToggleTheme" class="icon-btn" title="Alternar tema"><svg class="ic"><use href="#i-sun"/></svg></button>
+      <button id="btnToggleLog" class="icon-btn" title="Log de requisições"><svg class="ic"><use href="#i-log"/></svg></button>
+      <button id="btnToggleFullscreen" class="icon-btn" title="Tela cheia (F11)"><svg class="ic"><use href="#i-expand"/></svg></button>
+      <button id="btnConfig" class="icon-btn" title="Configurações"><svg class="ic"><use href="#i-settings"/></svg></button>
+    </div>
+  </header>
+
+  <!-- CONTEÚDO -->
+  <main class="layout">
+
+    <!-- Catálogo -->
+    <section class="catalog">
+      <div class="catalog-head">
+        <div class="search">
+          <svg class="ic"><use href="#i-search"/></svg>
+          <input id="productSearch" type="search" placeholder="Buscar produto por nome ou código…" autocomplete="off" />
+          <kbd>F2</kbd>
+        </div>
+        <div class="catalog-meta" id="productCount">0 produtos</div>
+      </div>
+      <div id="products" class="products"></div>
+      <div id="productsEmpty" class="empty-state" hidden>
+        <svg class="ic"><use href="#i-search"/></svg>
+        <div class="empty-title">Nenhum produto encontrado</div>
+        <div class="empty-sub">Tente outro nome ou código.</div>
+      </div>
+    </section>
+
+    <!-- Pedido -->
+    <aside class="order" id="orderPanel">
+
+      <!-- Etapas -->
+      <div class="steps">
+        <button class="step tab-btn active" data-tab="cart">
+          <span class="step-num">1</span><span>Pedido</span>
+          <span class="step-count" id="cartCount">0</span>
+        </button>
+        <span class="step-sep"></span>
+        <button class="step tab-btn" data-tab="payment" id="tabPaymentBtn">
+          <span class="step-num">2</span><span>Pagamento</span>
+        </button>
+      </div>
+
+      <!-- Etapa 1: Carrinho -->
+      <div class="tab-content active" id="tabCart">
+        <div class="order-body">
+          <div id="cartRows" class="cart-list"></div>
+          <div id="cartEmpty" class="empty-state">
+            <svg class="ic"><use href="#i-cart"/></svg>
+            <div class="empty-title">Carrinho vazio</div>
+            <div class="empty-sub">Toque em um produto para adicioná-lo.</div>
+          </div>
+        </div>
+
+        <div class="order-foot">
+          <div class="totals">
+            <div class="line"><span>Subtotal</span><span id="subTotal">R$ 0,00</span></div>
+            <div class="line grand"><span>Total</span><span id="grandTotal">R$ 0,00</span></div>
+          </div>
+          <div class="foot-actions">
+            <button class="btn btn-ghost btn-icon-only" id="btnClear" title="Limpar carrinho">
+              <svg class="ic"><use href="#i-trash"/></svg>
+            </button>
+            <button class="btn btn-primary btn-lg" id="btnChoosePayment">
+              <span>Ir para pagamento</span>
+              <kbd class="kbd-inv">F4</kbd>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Etapa 2: Pagamento -->
+      <div class="tab-content" id="tabPayment">
+        <div class="order-body">
+          <div class="amount-card">
+            <div class="amount-label">Total a pagar</div>
+            <div class="amount-value" id="grandTotalPayment">R$ 0,00</div>
+            <div class="amount-sub" id="paymentItemsInfo">0 itens</div>
+          </div>
+
+          <div class="section-label">Forma de pagamento</div>
+          <div class="payment-methods" id="payMethod">
+            <button type="button" class="payment-method-btn" data-method="debit">
+              <svg class="ic"><use href="#i-card"/></svg><span>Débito</span><kbd>1</kbd>
+            </button>
+            <button type="button" class="payment-method-btn" data-method="credit">
+              <svg class="ic"><use href="#i-card"/></svg><span>Crédito à vista</span><kbd>2</kbd>
+            </button>
+            <button type="button" class="payment-method-btn" data-method="credit_inst">
+              <svg class="ic"><use href="#i-cards"/></svg><span>Crédito parcelado</span><kbd>3</kbd>
+            </button>
+            <button type="button" class="payment-method-btn" data-method="pix">
+              <img src="img/Pix.png" alt="" class="pm-img" /><span>PIX</span><kbd>4</kbd>
+            </button>
+            <button type="button" class="payment-method-btn" data-method="voucher">
+              <svg class="ic"><use href="#i-ticket"/></svg><span>Voucher</span><kbd>5</kbd>
+            </button>
+          </div>
+
+          <div class="field" id="instWrap" style="display:none;">
+            <label for="installments">Número de parcelas</label>
+            <div class="stepper">
+              <button type="button" id="instDec" aria-label="Menos parcelas"><svg class="ic"><use href="#i-minus"/></svg></button>
+              <input id="installments" type="number" min="2" max="18" step="1" value="2" />
+              <button type="button" id="instInc" aria-label="Mais parcelas"><svg class="ic"><use href="#i-plus"/></svg></button>
+              <span class="stepper-info" id="instInfo"></span>
+            </div>
+          </div>
+
+          <details class="details-box">
+            <summary><svg class="ic chev"><use href="#i-chevron"/></svg>Dados do pedido</summary>
+            <div class="details-inner">
+              <div class="field">
+                <label for="desc">Descrição</label>
+                <input id="desc" type="text" value="Pagamento PDV" />
+              </div>
+              <div class="field">
+                <label for="orderId">Nº do pedido (Order ID)</label>
+                <input id="orderId" type="text" value="" />
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <div class="order-foot">
+          <div class="foot-actions">
+            <button class="btn btn-ghost btn-icon-only" id="btnBackToCart" title="Voltar ao pedido">
+              <svg class="ic"><use href="#i-back"/></svg>
+            </button>
+            <button class="btn btn-success btn-lg" id="btnPay">
+              <span>Cobrar <span id="payBtnAmount">R$ 0,00</span></span>
+              <kbd class="kbd-inv">F9</kbd>
+            </button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Barra de checkout (mobile) -->
+  <div class="mobile-bar" id="mobileBar">
+    <div>
+      <div class="mb-label"><span id="mbItems">0 itens</span></div>
+      <div class="mb-total" id="mbTotal">R$ 0,00</div>
+    </div>
+    <button class="btn btn-primary" id="mbGo">Ver pedido <svg class="ic"><use href="#i-arrow"/></svg></button>
+  </div>
+
+  <div class="shortcuts">
+    <span><kbd>F2</kbd> Buscar</span>
+    <span><kbd>F4</kbd> Pagamento</span>
+    <span><kbd>F9</kbd> Cobrar</span>
+    <span><kbd>Esc</kbd> Voltar/Fechar</span>
+  </div>
+</div>
+
+<!-- Painel de Log lateral -->
 <div id="logPanel" class="log-panel">
   <div class="log-panel-header">
-    <h3>Log de Requisições</h3>
-    <button id="btnCloseLog" class="log-close-btn">✕</button>
+    <h3>Log de requisições</h3>
+    <button id="btnCloseLog" class="icon-btn sm"><svg class="ic"><use href="#i-x"/></svg></button>
   </div>
   <div class="log-panel-toolbar">
-    <button id="btnClearLog" class="log-toolbar-btn">🗑️ Limpar</button>
-    <button id="btnCopyLog" class="log-toolbar-btn">📋 Copiar</button>
+    <button id="btnClearLog" class="btn btn-ghost btn-sm"><svg class="ic"><use href="#i-trash"/></svg>Limpar</button>
+    <button id="btnCopyLog" class="btn btn-ghost btn-sm"><svg class="ic"><use href="#i-copy"/></svg>Copiar</button>
   </div>
   <div id="logContent" class="log-content">
     <div class="log-empty">Nenhuma requisição registrada ainda.</div>
   </div>
 </div>
 
-<main>
-  <div class="grid">
-
-    <!-- Produtos -->
-    <section class="card">
-      <div class="hd">
-        <h2>Produtos</h2>
-        
-      </div>
-      <div class="bd">
-        <div id="products" class="products"></div>
-      </div>
-    </section>
-
-    <!-- Carrinho / Pagamento -->
-    <aside class="card">
-      <div class="hd">
-        <h2>Carrinho / Pagamento</h2>
-        <small id="cartCount">0 itens</small>
-      </div>
-
-      <!-- Tabs Navigation -->
-      <div class="tabs-nav">
-        <button class="tab-btn active" data-tab="cart">
-          <span>🛒</span>
-          <span>Carrinho</span>
-        </button>
-        <button class="tab-btn" data-tab="payment" id="tabPaymentBtn">
-          <span>💳</span>
-          <span>Pagamento</span>
-        </button>
-      </div>
-
-      <div class="bd">
-        <!-- Aba Carrinho -->
-        <div class="tab-content active" id="tabCart">
-          <div class="cart-table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th>Qtd</th>
-                  <th>Subtotal</th>
-                </tr>
-              </thead>
-              <tbody id="cartRows"></tbody>
-            </table>
-          </div>
-
-          <div class="totals">
-            <div class="line"><span>Subtotal</span><span id="subTotal">R$ 0,00</span></div>
-            <div class="line grand"><span>Total</span><span id="grandTotal">R$ 0,00</span></div>
-          </div>
-
-          <div class="actions">
-            <button class="pay" id="btnChoosePayment">
-            
-              <span>Prosseguir</span>
-            </button>
-            <button class="clear" id="btnClear">
-             
-              <span>Limpar carrinho</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Aba Pagamento -->
-        <div class="tab-content" id="tabPayment">
-          <div class="field">
-            <label>Forma de pagamento</label>
-            <div class="payment-methods" id="payMethod">
-              <button type="button" class="payment-method-btn" data-method="debit">
-                <span class="payment-icon">💳</span>
-                <span>Débito</span>
-              </button>
-              <button type="button" class="payment-method-btn" data-method="credit">
-                <span class="payment-icon">💳</span>
-                <span>Crédito à vista</span>
-              </button>
-              <button type="button" class="payment-method-btn" data-method="credit_inst">
-                <span class="payment-icon">💳</span>
-                <span>Crédito parcelado</span>
-              </button>
-              <button type="button" class="payment-method-btn" data-method="pix">
-                <span class="payment-icon pix-icon">
-                  <img src="img/Pix.png" alt="PIX" />
-                </span>
-                <span>PIX</span>
-              </button>
-              <button type="button" class="payment-method-btn" data-method="voucher">
-                <span class="payment-icon">🎫</span>
-                <span>Voucher</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="field" id="instWrap" style="display:none;">
-            <label>Parcelas</label>
-            <input id="installments" type="number" min="2" max="18" step="1" value="2" />
-            <div class="hint">Usado somente para "Crédito parcelado".</div>
-          </div>
-
-          <div class="field">
-            <label>Descrição do pagamento</label>
-            <input id="desc" type="text" value="Pagamento PDV" />
-          </div>
-
-          <div class="field">
-            <label>Order ID (seu número do pedido)</label>
-            <input id="orderId" type="text" value="PDV-001" />
-          </div>
-
-          <div class="totals" style="margin: 20px 0;">
-            <div class="line grand"><span>Total a pagar</span><span id="grandTotalPayment">R$ 0,00</span></div>
-          </div>
-
-          <div class="actions">
-            <button class="pay" id="btnPay">
-              <span>💳 </span>
-              <span>Realizar pagamento</span>
-            </button>
-            <button class="clear" id="btnBackToCart">
-              <span>← </span>
-              <span>Voltar ao carrinho</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </aside>
-
-  </div>
-</main>
-
 <!-- Modal TEF -->
 <div class="modal" id="modal">
-  <div class="box">
-  <div class="hd">
-    <div>
-      <strong id="modalTitle" class="title-lg">Aguardando pagamento TEF</strong><br/>
-      <small id="modalSub" class="subtitle-lg">Total: R$ 12,00 — Itens: 1</small>
-    </div>
-    <span id="statusBadge" class="badge badge-lg warn">Solicitado</span>
-  </div>
-
-  <div class="bd">
-
-    <!-- STATUS PRINCIPAL -->
-    <div id="statusArea" class="status-area waiting">
-      <div class="status-text">Aguardando aprovação na maquininha</div>
-      <div class="status-hint">Finalize o pagamento no TEF</div>
-      <div id="timeoutCounter" class="timeout-counter" style="display:none;">
-        <span class="timeout-label">Tempo restante:</span>
-        <span id="timeoutTime" class="timeout-time">01:00</span>
+  <div class="box box-pay">
+    <div class="pay-head">
+      <div>
+        <div id="modalTitle" class="modal-title">Aguardando pagamento</div>
+        <div id="modalSub" class="modal-sub">Total: R$ 0,00 — Itens: 0</div>
       </div>
+      <span id="statusBadge" class="badge warn">Aguardando</span>
     </div>
 
-    <!-- SUCESSO -->
-    <div id="successArea" class="status-area success" style="display:none;">
-      <div class="success-icon">✔</div>
-      <div class="success-text">PAGAMENTO APROVADO</div>
-      <div class="success-hint">Venda finalizada com sucesso</div>
-    </div>
-
-    <!-- CANCELADO -->
-    <div id="canceledArea" class="status-area canceled" style="display:none;">
-      <div class="canceled-icon">✕</div>
-      <div class="canceled-text">PAGAMENTO CANCELADO</div>
-      <div class="canceled-hint">Transação cancelada</div>
-    </div>
-
-    <!-- INFO -->
-    <div class="info-box">
-      <div><strong>Pagamento:</strong> <span id="pid">—</span></div>
-      <div><strong>Status:</strong> <span id="pstatus">—</span></div>
-    </div>
-
-    <!-- ACCORDION LOG -->
-    <details class="accordion">
-      <summary>📄 Ver detalhes técnicos</summary>
-      <div class="log" id="log"></div>
-    </details>
-
-    <!-- BOTÕES -->
-    <div class="actions">
-      <button class="cancelTef" id="btnCancelTef">
-        Fechar
-      </button>
-      <button class="clear" id="btnCloseOk" style="display:none;">
-        Concluir
-      </button>
-    </div>
-
-    <div class="hint">
-      Status: <strong>1</strong> Solicitado | <strong>4</strong> Pago | <strong>5</strong> Cancelado
-    </div>
-
-  </div>
-  </div>
-</div>
-
-<!-- Modal de Buscando POS (Loading) -->
-<div class="modal" id="posSearchingModal">
-  <div class="box">
-    <div class="bd">
-      <div class="pos-loading-icon">⏳</div>
-      <div class="pos-loading-title">Buscando POS...</div>
-      <div class="pos-loading-subtitle">Aguarde enquanto consultamos os terminais disponíveis</div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal de Seleção de POS -->
-<div class="modal" id="posSelectModal">
-  <div class="box" style="max-width:600px;">
-    <div class="hd">
-      <strong id="posSelectTitle" style="font-size:20px;">Selecione uma POS</strong>
-      <button id="btnClosePosSelect" class="config-btn">✕</button>
-    </div>
-
-    <div class="bd">
-      <div id="posList" class="pos-list-container">
-        <!-- Lista de POS será inserida aqui -->
-      </div>
-
-      <div class="actions" style="margin-top: 16px;">
-        <button class="clear" id="btnCancelPosSelect">Cancelar</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal de Configuração -->
-<div class="modal" id="configModal">
-  <div class="box" style="max-width:520px;">
-    <div class="hd">
-      <strong style="font-size:20px;">Configuração SuperTEF</strong>
-      <button id="btnCloseConfig" class="config-btn">✕</button>
-    </div>
-
-    <div class="bd">
-      <div class="field">
-        <label>Bearer Token</label>
-        <div class="token-input-wrapper">
-          <input id="cfgToken" type="password" placeholder="Bearer eyJhbGciOi..." />
-          <button type="button" class="token-toggle-btn" id="btnToggleToken" title="Mostrar/Ocultar token">
-            <span class="token-eye-icon">👁️</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="field">
-        <label>Cliente Chave</label>
-        <input id="cfgCliente" type="text" placeholder="ex: 68e6f645a5e3" />
-      </div>
-
-      <div class="field">
-        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-          <input type="checkbox" id="cfgListarPos" style="width: auto; cursor: pointer;" />
-          <span>Listar POS</span>
-        </label>
-        <div class="hint" style="margin-top: 4px;">
-          Se habilitado, lista POS disponíveis para escolher. Se desabilitado, usa o POS_ID abaixo.
-        </div>
-      </div>
-
-      <div class="field">
-        <label>POS_ID (usado apenas se "Listar POS" estiver desabilitado)</label>
-        <input id="cfgPosId" type="number" placeholder="ex: 1272" />
-      </div>
-
-      <div class="hint">
-        Essas informações são fornecidas pelo painel SuperTEF.<br>
-        Ficam salvas apenas neste navegador.
-      </div>
-
-      <div class="actions">
-        <button class="pay" id="btnSaveConfig">Salvar configuração</button>
-        <button class="clear" id="btnCancelConfig">Cancelar</button>
-      </div>
-
-      <div class="config-danger-section">
-        <div class="field">
-          <label style="font-weight: 600; color: var(--text);">Limpar dados sensíveis</label>
-          <div class="hint" style="margin-bottom: 12px;">
-            Remove todos os dados sensíveis salvos no navegador (Token, Cliente Chave, POS ID, etc.). 
-            Esta ação não pode ser desfeita.
+    <div class="pay-body">
+      <!-- AGUARDANDO -->
+      <div id="statusArea" class="state state-waiting">
+        <div class="pulse-ring"><svg class="ic"><use href="#i-pos"/></svg></div>
+        <div class="state-title">Siga as instruções na maquininha</div>
+        <div class="state-sub">Insira, aproxime ou passe o cartão no terminal</div>
+        <div id="timeoutCounter" class="timeout" style="display:none;">
+          <div class="timeout-row">
+            <span>Tempo restante</span>
+            <span id="timeoutTime" class="timeout-time">01:00</span>
           </div>
-          <button class="clear-danger" id="btnClearSensitiveData">
-            <span>🗑️</span>
-            <span>Limpar dados sensíveis</span>
-          </button>
+          <div class="progress"><div class="progress-bar" id="timeoutBar"></div></div>
         </div>
       </div>
+
+      <!-- SUCESSO -->
+      <div id="successArea" class="state state-success" style="display:none;">
+        <div class="state-icon ok"><svg class="ic"><use href="#i-check"/></svg></div>
+        <div class="state-title">Pagamento aprovado</div>
+        <div class="state-sub">Venda finalizada com sucesso</div>
+      </div>
+
+      <!-- CANCELADO -->
+      <div id="canceledArea" class="state state-canceled" style="display:none;">
+        <div class="state-icon bad"><svg class="ic"><use href="#i-x"/></svg></div>
+        <div class="state-title">Pagamento não concluído</div>
+        <div class="state-sub" id="canceledHint">Transação cancelada</div>
+      </div>
+
+      <div class="info-grid">
+        <div><span class="k">ID do pagamento</span><span class="v mono" id="pid">—</span></div>
+        <div><span class="k">Status</span><span class="v" id="pstatusLabel">—</span><span id="pstatus" hidden>—</span></div>
+      </div>
+
+      <details class="details-box">
+        <summary><svg class="ic chev"><use href="#i-chevron"/></svg>Detalhes técnicos</summary>
+        <div class="log" id="log"></div>
+      </details>
+    </div>
+
+    <div class="pay-foot">
+      <button class="btn btn-danger-soft btn-lg" id="btnCancelTef">Cancelar</button>
+      <button class="btn btn-primary btn-lg" id="btnCloseOk" style="display:none;">Nova venda</button>
     </div>
   </div>
 </div>
 
-<!-- Container de Notificações Toast -->
+<!-- Modal Buscando POS -->
+<div class="modal" id="posSearchingModal">
+  <div class="box box-sm">
+    <div class="loading-box">
+      <div class="spinner"></div>
+      <div class="loading-title">Buscando terminais…</div>
+      <div class="loading-sub">Consultando as POS disponíveis</div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Seleção de POS -->
+<div class="modal" id="posSelectModal">
+  <div class="box box-md">
+    <div class="modal-head">
+      <div>
+        <div id="posSelectTitle" class="modal-title">Selecione o terminal</div>
+        <div class="modal-sub">Escolha a maquininha que receberá a cobrança</div>
+      </div>
+      <button id="btnClosePosSelect" class="icon-btn sm"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div id="posList" class="pos-list"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="btnCancelPosSelect">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Configuração -->
+<div class="modal" id="configModal">
+  <div class="box box-md">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">Configurações</div>
+        <div class="modal-sub">Credenciais de integração SuperTEF</div>
+      </div>
+      <button id="btnCloseConfig" class="icon-btn sm"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+
+    <div class="modal-body">
+      <div class="field">
+        <label for="cfgToken">Bearer token</label>
+        <div class="input-wrap">
+          <input id="cfgToken" type="password" placeholder="eyJhbGciOi…" autocomplete="off" />
+          <button type="button" class="input-btn" id="btnToggleToken" title="Mostrar/ocultar token">
+            <svg class="ic token-eye-icon"><use href="#i-eye"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="cfgCliente">Cliente chave</label>
+        <input id="cfgCliente" type="text" placeholder="ex: 68e6f645a5e3" autocomplete="off" />
+      </div>
+
+      <label class="switch-row" for="cfgListarPos">
+        <div>
+          <div class="switch-title">Listar POS ao cobrar</div>
+          <div class="hint">Exibe os terminais ativos para escolha a cada venda.</div>
+        </div>
+        <input type="checkbox" id="cfgListarPos" class="switch" />
+      </label>
+
+      <div class="field">
+        <label for="cfgPosId">POS_ID fixo</label>
+        <input id="cfgPosId" type="number" placeholder="ex: 1272" />
+        <div class="hint">Usado quando “Listar POS” está desligado.</div>
+      </div>
+
+      <div class="note">
+        <svg class="ic"><use href="#i-info"/></svg>
+        <span>Dados fornecidos pelo painel SuperTEF. Ficam salvos apenas neste navegador.</span>
+      </div>
+
+      <div class="danger-zone">
+        <div>
+          <div class="switch-title">Limpar dados sensíveis</div>
+          <div class="hint">Remove token, cliente chave e POS salvos. Não pode ser desfeito.</div>
+        </div>
+        <button class="btn btn-danger-soft btn-sm" id="btnClearSensitiveData">
+          <svg class="ic"><use href="#i-trash"/></svg>Limpar
+        </button>
+      </div>
+    </div>
+
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="btnCancelConfig">Cancelar</button>
+      <button class="btn btn-primary" id="btnSaveConfig">Salvar configuração</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toasts -->
 <div id="toastContainer" class="toast-container"></div>
 
-  <!-- Scripts JavaScript (ordem de carregamento importante) -->
-  <script src="js/utils.js"></script>
-  <script src="js/config.js"></script>
-  <script src="js/cart.js"></script>
-  <script src="js/products.js"></script>
-  <script src="js/api.js"></script>
-  <script src="js/modal.js"></script>
-  <script src="js/payment.js"></script>
-  <script src="js/main.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/config.js"></script>
+<script src="js/cart.js"></script>
+<script src="js/products.js"></script>
+<script src="js/api.js"></script>
+<script src="js/modal.js"></script>
+<script src="js/payment.js"></script>
+<script src="js/main.js"></script>
 </body>
 </html>

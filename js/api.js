@@ -39,6 +39,10 @@ async function apiFetch(path, opts = {}) {
     if (!res.ok) {
       const msg = (json && (json.message || json.error)) ? (json.message || json.error) : text;
       error = new Error(`HTTP ${res.status} - ${msg || "Erro na requisição"}`);
+      error.status = res.status;
+      // Retry-After (segundos) — enviado pela API em respostas 429
+      const retryAfter = parseInt(res.headers.get("Retry-After") || "", 10);
+      if (!Number.isNaN(retryAfter)) error.retryAfterMs = retryAfter * 1000;
       
       // Registrar log com erro
       addRequestLog(method, fullUrl, requestData, json || text, status, error);

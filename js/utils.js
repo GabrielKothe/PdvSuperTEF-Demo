@@ -18,44 +18,41 @@ function showToast(message, type = 'info', duration = 4000) {
   const container = $("toastContainer");
   if (!container) return;
 
+  const icons = { info: 'i-info', success: 'i-check', error: 'i-x', warning: 'i-alert' };
   const toast = document.createElement("div");
   toast.className = `toast toast-${type}`;
-  
-  // Ícones por tipo
-  const icons = {
-    info: 'ℹ️',
-    success: '✓',
-    error: '✕',
-    warning: '⚠️'
-  };
-  
+  toast.setAttribute("role", type === 'error' ? "alert" : "status");
   toast.innerHTML = `
-    <div class="toast-icon">${icons[type] || icons.info}</div>
-    <div class="toast-message">${message}</div>
-    <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+    <div class="toast-icon"><svg class="ic"><use href="#${icons[type] || icons.info}"/></svg></div>
+    <div class="toast-message"></div>
+    <button class="toast-close" aria-label="Fechar"><svg class="ic"><use href="#i-x"/></svg></button>
   `;
-  
+  toast.querySelector(".toast-message").textContent = message;
   container.appendChild(toast);
-  
-  // Animação de entrada
-  setTimeout(() => {
-    toast.classList.add("show");
-  }, 10);
-  
-  // Remover automaticamente após a duração
+
+  // Limita a quantidade de toasts empilhados
+  while (container.children.length > 4) container.firstElementChild.remove();
+
+  requestAnimationFrame(() => toast.classList.add("show"));
+
   const removeToast = () => {
     toast.classList.remove("show");
-    setTimeout(() => {
-      if (toast.parentElement) {
-        toast.remove();
-      }
-    }, 300);
+    setTimeout(() => toast.remove(), 250);
   };
-  
   setTimeout(removeToast, duration);
-  
-  // Remover ao clicar no botão fechar
   toast.querySelector(".toast-close").addEventListener("click", removeToast);
+}
+
+// Visual do produto: foto real ou monograma colorido (quando não há foto)
+const PLACEHOLDER_IMG = "img/FotoProduto.png";
+function productVisual(p) {
+  const initials = p.name.split(/\s+/).filter(w => w.length > 2 || /^[A-Z0-9]/.test(w))
+    .slice(0, 2).map(w => w[0]).join("").toUpperCase() || p.name.slice(0, 2).toUpperCase();
+  let h = 0;
+  for (const c of p.name) h = (h * 31 + c.charCodeAt(0)) % 360;
+  const mono = `<div class="monogram" style="--h:${h}">${escapeHtml(initials)}</div>`;
+  if (!p.image || p.image === PLACEHOLDER_IMG) return mono;
+  return `<img src="${escapeHtml(p.image)}" alt="" loading="lazy" onerror="this.outerHTML=this.dataset.fb" data-fb='${mono.replace(/'/g, "&#39;")}' />`;
 }
 
 // Aliases para facilitar o uso
@@ -119,7 +116,7 @@ function renderLogs() {
           <span class="log-entry-method ${log.method}">${log.method}</span>
           <span class="log-entry-time">${log.timestamp}</span>
         </div>
-        <div class="log-entry-url">${log.url}</div>
+        <div class="log-entry-url">${escapeHtml(log.url)}</div>
         <div class="log-entry-status ${statusClass}">${statusText}</div>
         <details class="log-entry-details">
           <summary>📤 Ver requisição</summary>
@@ -172,6 +169,8 @@ async function copyRequestLogs() {
 function toggleLogPanel() {
   const panel = $("logPanel");
   if (panel) {
-    panel.classList.toggle('open');
+    const open = panel.classList.toggle('open');
+    const btn = $("btnToggleLog");
+    if (btn) btn.classList.toggle('active', open);
   }
 }
